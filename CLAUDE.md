@@ -90,14 +90,26 @@ pipeline + backend-av + renderer + tracing + spec ← cli (Layer 4)
 - BRO-532: V-JEPA2 backend
 - BRO-533: LearnedMapper V2
 
+### Phase 3.5 — TRIBE v2 Neural Intent
+TRIBE v2 (Meta FAIR) predicts fMRI brain activations from video. Instead of acoustic features → CWI styling,
+map predicted neural responses → CWI styling. Captions represent what the viewer's brain WOULD FEEL.
+
+- BRO-541: TRIBE v2 integration POC (extract ROI activations from 6 brain regions)
+- BRO-544: Add NeuralPrediction type to IntentFrame schema
+- BRO-542: @opencaptions/backend-tribe (TRIBE v2 subprocess backend)
+- BRO-543: NeuralMapper V3 (amygdala→size, right_temporal→weight, broca→emphasis)
+- BRO-545: Deaf reviewer validation study (V1 vs V3 quality comparison)
+
+Resources: github.com/facebookresearch/tribev2, huggingface.co/facebook/tribev2, CC BY-NC
+
 ### Phase 4 — Ecosystem
 - BRO-539: Community outreach
 
 ## npm Publishing
 
 - **Scope**: `@opencaptions/*`
-- **npm org**: `opencaptions` (needs to be created at npmjs.com/org/create)
-- **Not yet published** — org creation pending
+- **npm org**: `opencaptions` (created, broomva = owner)
+- **Not yet published** — run `./scripts/publish-all.sh` (requires passkey auth per package via `bun publish`)
 - Publish order must respect dependency chain: types → spec/layout/pipeline/tracing → backend-av/renderer → cli
 
 ## Design Spec
