@@ -273,9 +273,15 @@ export class AudioVisionExtractor implements IntentExtractorBackend {
 	private groupIntoUtterances(transcript: DiarizedTranscript): Utterance[] {
 		const utterances: Utterance[] = [];
 		let current: Utterance | null = null;
+		const PAUSE_THRESHOLD = 0.4; // Split on gaps > 400ms
 
 		for (const word of transcript.words) {
-			if (!current || current.speaker_id !== word.speaker_id) {
+			const shouldSplit =
+				!current ||
+				current.speaker_id !== word.speaker_id ||
+				(word.start - current.end > PAUSE_THRESHOLD);
+
+			if (shouldSplit) {
 				if (current) utterances.push(current);
 				current = {
 					id: `utt_${utterances.length}`,
