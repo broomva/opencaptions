@@ -18,5 +18,8 @@
 		"typecheck": "tsc --noEmit",
 		"clean": "rm -rf dist .turbo"
 	},
-	"license": "MIT"
+	"license": "MIT",
+	"publishConfig": {
+		"access": "public"
+	}
 }
