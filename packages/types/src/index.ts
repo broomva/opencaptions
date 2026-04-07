@@ -92,6 +92,26 @@ export type WordIntent = {
 	shout?: boolean;
 };
 
+/**
+ * Predicted neural activations from TRIBE v2 brain encoding model.
+ * Maps video+audio+text → predicted fMRI voxel activations → 6 ROI scalars.
+ * Each value is 0-1, representing normalized activation in that brain region.
+ */
+export type NeuralPrediction = {
+	/** Amygdala-adjacent cortex: emotional intensity. Drives CWI size. */
+	amygdala_activation: number;
+	/** Right temporal cortex: emotional prosody processing. Drives CWI weight. */
+	right_temporal_activation: number;
+	/** Broca's area: syntactic load / speech production. Drives CWI emphasis. */
+	broca_activation: number;
+	/** Insular cortex: empathic/visceral response. Drives animation speed. */
+	insula_activation: number;
+	/** Default Mode Network suppression: engagement level. High = engaged. */
+	dmn_suppression: number;
+	/** Fusiform Face Area: face/identity processing. Drives attribution timing. */
+	ffa_activation: number;
+};
+
 /** Rhetorical device classification for the semantic layer. */
 export type RhetoricalDevice = "question" | "exclamation" | "command" | "aside";
 
@@ -151,6 +171,9 @@ export type IntentFrame = {
 
 	/** V2: JEPA world model embedding (null in V1). Float32, 256-dim. */
 	world_embedding?: number[];
+
+	/** V3: TRIBE v2 predicted neural activations (null in V1/V2). */
+	neural_prediction?: NeuralPrediction;
 };
 
 // ============================================================================
@@ -369,6 +392,8 @@ export type PipelineTrace = {
 		extraction_ms: number;
 		mapping_ms: number;
 		validation_ms: number;
+		/** V3: TRIBE v2 neural prediction inference time. 0 if not used. */
+		tribe_inference_ms?: number;
 	};
 	output: {
 		validation_score: number;
