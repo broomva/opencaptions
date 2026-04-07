@@ -1,10 +1,15 @@
-# OpenCaptions — Project Context
+# CLAUDE.md — OpenCaptions
+
+## Project
+
+OpenCaptions — open-source CWI (Caption with Intention) video understanding pipeline.
+Built on next-forge (Turborepo + Next.js) with symphony-forge metalayer.
 
 ## What This Is
 
-OpenCaptions is an open-source video understanding pipeline that generates **Caption with Intention (CWI)** compliant captions. CWI is the Oscar-winning (2025) captioning standard by FCB Chicago + Chicago Hearing Society that transforms flat static captions into expressive visual storytelling through attribution (speaker colors), synchronization (word-level animation), and intonation (variable font weight/size conveying pitch and volume).
+OpenCaptions generates Caption with Intention (CWI) compliant captions by extracting cinematic intent from video — pitch, volume, emotion, emphasis, sarcasm, pacing — then renders that felt experience as CWI visual language (color-coded attribution, word-level synchronization, variable-font intonation).
 
-OpenCaptions is the first programmatic toolchain for CWI. It extracts cinematic intent from video — pitch, volume, emotion, emphasis, sarcasm, pacing — then renders that felt experience as CWI visual language.
+CWI is the Oscar-winning (2025) captioning standard by FCB Chicago + Chicago Hearing Society.
 
 ## Architecture
 
@@ -12,14 +17,22 @@ OpenCaptions is the first programmatic toolchain for CWI. It extracts cinematic 
 VideoInput
   → TranscriptBackend (V1: whisper.cpp)
   → DiarizationBackend (V1: pyannote-audio)
-  → IntentExtractorBackend (V1: audio+vision, V2: V-JEPA2)
-  → IntentMapper (V1: RulesMapper, V2: LearnedMapper)
+  → IntentExtractorBackend (V1: audio+vision, V2: V-JEPA2, V3: TRIBE v2)
+  → IntentMapper (V1: RulesMapper, V2: LearnedMapper, V3: NeuralMapper)
   → CWIValidator → ValidationReport
   → TracingCollector (opt-in feedback flywheel)
 ```
 
+## Stack
+
+- next-forge (Turborepo + Next.js 15) + symphony-forge metalayer
+- Bun as package manager
+- Biome for linting (never ESLint/Prettier)
+- TypeScript strict mode, ES2022 target
+
 ## Package Structure
 
+### OpenCaptions packages (`@opencaptions/*`)
 ```
 packages/
 ├── types/       — Zero-dep TypeScript types + constants (foundation)
@@ -34,45 +47,79 @@ packages/
 └── cli/         — Bun CLI: generate, validate, preview, export, telemetry
 ```
 
-Dependency graph (no cycles):
+### next-forge infrastructure (`@repo/*`)
 ```
-types ← spec, layout, pipeline, tracing (Layer 2 — all independent)
-pipeline ← backend-av, backend-jepa, mcp (Layer 3)
-layout ← renderer (Layer 3)
-pipeline + backend-av + renderer + tracing + spec ← cli (Layer 4)
+packages/
+├── auth/           — Better Auth (dashboard login)
+├── payments/       — Stripe (staircase pricing)
+├── database/       — Prisma (report storage)
+├── design-system/  — shadcn/ui components
+├── analytics/      — Usage tracking
+├── observability/  — Error tracking + logging
+└── typescript-config/ — Shared TS configs
 ```
+
+### Apps
+```
+apps/
+├── web/    — Landing page (opencaptions.tools)
+├── app/    — Dashboard (reports, badges, billing)
+├── api/    — Hosted pipeline API
+└── docs/   — Documentation (Mintlify)
+```
+
+## Commands
+
+- `bun install` — install dependencies
+- `bun run dev` — start all apps in dev mode
+- `bun run build` — build all apps and packages
+- `bun run check` — lint all packages
+- `make -f Makefile.control smoke` — quick validation (~120s)
+- `make -f Makefile.control check` — lint + typecheck (~60s)
+- `make -f Makefile.control ci` — full pipeline (~600s)
+- `make -f Makefile.control audit` — entropy audit
 
 ## Conventions
 
-- **Package manager**: Bun (1.3+)
-- **Build**: Turborepo (`turbo build`)
-- **Linter**: Biome (never ESLint/Prettier)
-- **TypeScript**: Strict mode, ES2022 target, ESNext modules
-- **Formatting**: Tabs, double quotes, semicolons, 100 char line width
-- **Testing**: `bun test`
-- **License**: MIT
+- App Router (Next.js) — no pages/ directory
+- Server Components by default, 'use client' only when needed
+- Shared UI in packages/design-system
+- Database schema in packages/database (Prisma)
+- Our packages use `tsc` for builds (not tsup)
+- Our packages extend `@repo/typescript-config/base.json`
+
+## Knowledge Graph
+
+The knowledge graph lives in `docs/` using Obsidian-flavored Markdown.
+
+- **Entry point**: `docs/_index.md`
+- **Architecture**: `docs/architecture/`
+- **Decisions**: `docs/decisions/`
+- **Runbooks**: `docs/runbooks/`
+- **Templates**: `docs/_templates/`
+
+## Control Harness
+
+- **`.control/policy.yaml`** — Risk gates
+- **`.control/commands.yaml`** — Canonical commands
+- **`.control/topology.yaml`** — Repo map
+- **`.control/egri.yaml`** — EGRI self-improvement loop
+- **`scripts/harness/`** — Automation scripts
+- **`Makefile.control`** — Control targets
 
 ## Key Design Decisions
 
-1. **Pluggable backends**: All extraction backends implement typed interfaces. V1 uses audio+vision tools via subprocess. V2 will swap in V-JEPA2 world model embeddings. Same types throughout.
-2. **RulesMapper is V1**: Pure math (lerp functions). Deterministic, auditable. LearnedMapper V2 will be trained on correction data from the telemetry flywheel.
-3. **Tracing is the moat**: The anonymous correction data (MapperCorrection) accumulates into training data for the learned mapper. The instrument improves with use.
-4. **Lighthouse model**: We don't certify — we measure. The validation report URL is the shareable artifact studios cite.
-5. **Staircase pricing**: Free CLI (unlimited local) → Starter $9 → Pro $29 → Studio $99 → Enterprise. Overage billing at each tier makes upgrades self-evident.
+1. **Pluggable backends**: All extraction backends implement typed interfaces. V1→audio+vision, V2→V-JEPA2, V3→TRIBE v2. Same types throughout.
+2. **RulesMapper is V1**: Pure math (lerp). LearnedMapper V2 trained on correction data.
+3. **NeuralMapper is V3**: Brain ROI activations → CWI styling. Captions represent what the viewer's brain WOULD FEEL.
+4. **Tracing is the moat**: Correction data accumulates → training data for learned mapper.
+5. **Lighthouse model**: We measure, not certify. Validation report URL is the shareable artifact.
+6. **Staircase pricing**: Free CLI → Starter $9 → Pro $29 → Studio $99 → Enterprise.
 
-## Linear Tickets (BRO-520 through BRO-540)
+## Linear Tickets (BRO-520 through BRO-546)
 
-### Phase 1 — Implemented (BRO-520 through BRO-528, BRO-538)
-- BRO-520: Project scaffolding ✅
-- BRO-521: @opencaptions/types ✅
-- BRO-522: @opencaptions/spec ✅
-- BRO-523: @opencaptions/layout ✅
-- BRO-524: @opencaptions/pipeline ✅
-- BRO-525: @opencaptions/backend-av ✅
-- BRO-526: @opencaptions/renderer ✅
-- BRO-527: @opencaptions/tracing ✅
-- BRO-528: @opencaptions/cli ✅
-- BRO-538: CI/CD (GitHub Actions workflow) ✅
+### Phase 1 — Implemented
+BRO-520 through BRO-528, BRO-538, BRO-544: All core packages + CI/CD + NeuralPrediction schema ✅
 
 ### Phase 1 — Remaining
 - BRO-529: Sample CWI documents + test fixtures
@@ -80,48 +127,35 @@ pipeline + backend-av + renderer + tracing + spec ← cli (Layer 4)
 - BRO-537: Landing page + docs site
 
 ### Phase 2 — API + Dashboard
-- BRO-530: Hosted API + credit billing
-- BRO-531: Web dashboard
-- BRO-534: MCP server for agent integration
-- BRO-535: AE/Premiere export plugins
-- BRO-536: Telemetry ingestion backend
+BRO-530 (API), BRO-531 (dashboard), BRO-534 (MCP), BRO-535 (AE/Premiere), BRO-536 (telemetry backend)
 
 ### Phase 3 — World Model + Learned Mapper
-- BRO-532: V-JEPA2 backend
-- BRO-533: LearnedMapper V2
+BRO-532 (V-JEPA2), BRO-533 (LearnedMapper V2)
 
 ### Phase 3.5 — TRIBE v2 Neural Intent
-TRIBE v2 (Meta FAIR) predicts fMRI brain activations from video. Instead of acoustic features → CWI styling,
-map predicted neural responses → CWI styling. Captions represent what the viewer's brain WOULD FEEL.
-
-- BRO-541: TRIBE v2 integration POC (extract ROI activations from 6 brain regions)
-- BRO-544: Add NeuralPrediction type to IntentFrame schema
-- BRO-542: @opencaptions/backend-tribe (TRIBE v2 subprocess backend)
-- BRO-543: NeuralMapper V3 (amygdala→size, right_temporal→weight, broca→emphasis)
-- BRO-545: Deaf reviewer validation study (V1 vs V3 quality comparison)
-
-Resources: github.com/facebookresearch/tribev2, huggingface.co/facebook/tribev2, CC BY-NC
+BRO-541 (POC), BRO-542 (backend-tribe), BRO-543 (NeuralMapper), BRO-545 (Deaf reviewer study)
 
 ### Phase 4 — Ecosystem
-- BRO-539: Community outreach
+BRO-539 (community), BRO-546 (OpenMontage integration)
 
 ## npm Publishing
 
-- **Scope**: `@opencaptions/*`
-- **npm org**: `opencaptions` (created, broomva = owner)
-- **Not yet published** — run `./scripts/publish-all.sh` (requires passkey auth per package via `bun publish`)
-- Publish order must respect dependency chain: types → spec/layout/pipeline/tracing → backend-av/renderer → cli
-
-## Design Spec
-
-Full design document at: `~/broomva/docs/superpowers/specs/2026-04-06-opencaptions-design.md`
+- **Scope**: `@opencaptions/*` | **Org**: `opencaptions` (broomva = owner)
+- Run `./scripts/publish-all.sh` (passkey auth per package via `bun publish`)
 
 ## CWI Animation Spec (from FCB Chicago)
 
-- Animation curve: ease
-- Animation delay: 100ms
-- Animation duration: 600ms
+- Animation: ease curve, 100ms delay, 600ms duration
 - Word transition: white → speaker color
 - Emphasis: 15% size bounce upward
-- Font: Roboto Flex (variable font, weight = pitch, size = volume)
-- Speaker colors: 12-color WCAG AA palette defined in types/src/index.ts
+- Font: Roboto Flex (variable, weight = pitch, size = volume)
+- Speaker colors: 12-color WCAG AA palette in types/src/index.ts
+
+## Working Protocol
+
+1. Read `AGENTS.md` — understand commands, constraints
+2. Traverse `docs/_index.md` — domain-specific docs
+3. Check policy — `make -f Makefile.control policy-check`
+4. Implement — follow constraints
+5. Update docs — schema/API/env changes need doc updates
+6. Run checks — `make -f Makefile.control check` before commit

@@ -1,0 +1,94 @@
+# .control/egri.yaml — EGRI Self-Improvement Loop for next-forge
+# EGRI: Evaluate → Generate → Rank → Integrate
+#
+# This config defines the surfaces the system can mutate, the evaluators
+# that judge mutations, and the criteria for promoting changes.
+
+loop:
+  name: "egri"
+  description: "Continuous improvement loop for next-forge"
+
+  # --- Evaluate ---
+  # Metrics and checks that measure current system state
+  evaluators:
+    build:
+      command: "bun run build"
+      description: "Full build must succeed"
+      blocking: true
+
+    typecheck:
+      command: "make -f Makefile.control check"
+      description: "Lint + typecheck must pass"
+      blocking: true
+
+    tests:
+      command: "make -f Makefile.control test"
+      description: "All tests must pass"
+      blocking: true
+
+    audit:
+      command: "make -f Makefile.control audit"
+      description: "Entropy audit must pass (topology, stale docs, wikilinks)"
+      blocking: false
+
+  # --- Generate ---
+  # Surfaces the system is allowed to mutate
+  mutable_surfaces:
+    scripts:
+      paths:
+        - "scripts/harness/*.sh"
+      description: "Build automation scripts"
+      constraints:
+        - "Must maintain bash strict mode (set -euo pipefail)"
+        - "Must use REPO_ROOT pattern for path resolution"
+
+    docs:
+      paths:
+        - "docs/**/*.md"
+      description: "Knowledge graph documents"
+      constraints:
+        - "Must have valid frontmatter with tags"
+        - "Must be referenced in docs/_index.md"
+        - "Wikilinks must resolve to existing files"
+
+    control:
+      paths:
+        - ".control/*.yaml"
+      description: "Control metalayer configuration"
+      constraints:
+        - "Must be valid YAML"
+        - "topology.yaml must cover all apps/ and packages/"
+
+    agent_instructions:
+      paths:
+        - "CLAUDE.md"
+        - "AGENTS.md"
+      description: "Agent governance instructions"
+      constraints:
+        - "Must reference installed layers"
+        - "Must include working protocol"
+
+  # Surfaces that must NOT be mutated by the loop
+  immutable_surfaces:
+    - "packages/database/prisma/schema.prisma"
+    - ".env*"
+    - "package.json"
+    - "bun.lock"
+
+  # --- Rank ---
+  # How to compare before/after states
+  ranking:
+    strategy: "evaluator-pass-count"
+    description: "A mutation is better if it passes more evaluators without breaking any blocking ones"
+    tiebreaker: "fewer-files-changed"
+
+  # --- Integrate ---
+  # When and how to promote successful mutations
+  promotion:
+    criteria:
+      - "All blocking evaluators pass"
+      - "No new lint warnings introduced"
+      - "Audit score equal or better than before"
+    method: "commit-to-branch"
+    branch_prefix: "egri/"
+    requires_review: true

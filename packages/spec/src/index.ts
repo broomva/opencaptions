@@ -61,16 +61,9 @@ function contrastRatio(hex1: string, hex2: string): number {
  * Falls back to a hex-encoded digest via node:crypto if Bun is unavailable.
  */
 function sha256(data: string): string {
-	// Bun global hasher (synchronous, no import needed)
-	if (typeof globalThis.Bun !== "undefined") {
-		const hasher = new globalThis.Bun.CryptoHasher("sha256");
-		hasher.update(data);
-		return hasher.digest("hex") as string;
-	}
-	// Node.js fallback (dynamic require avoids static TS resolution)
-	// biome-ignore lint/suspicious/noExplicitAny: runtime fallback
-	const crypto = require("node:crypto") as any;
-	return crypto.createHash("sha256").update(data, "utf8").digest("hex");
+	// Use node:crypto (works in both Bun and Node.js)
+	const { createHash } = require("node:crypto");
+	return createHash("sha256").update(data, "utf8").digest("hex");
 }
 
 // ============================================================================

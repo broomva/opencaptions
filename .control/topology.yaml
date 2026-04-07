@@ -1,0 +1,100 @@
+# .control/topology.yaml — Repository topology map for next-forge
+# Describes all apps, packages, and their relationships.
+
+apps:
+  app:
+    path: "apps/app"
+    description: "Main application (Next.js App Router)"
+    port: 3000
+    risk: high
+    domain: dashboard
+    dependencies:
+      - "@repo/auth"
+      - "@repo/database"
+      - "@repo/design-system"
+      - "@repo/observability"
+
+  api:
+    path: "apps/api"
+    description: "API server (Next.js Route Handlers)"
+    port: 3002
+    risk: high
+    domain: api
+    dependencies:
+      - "@repo/auth"
+      - "@repo/database"
+      - "@repo/observability"
+
+  web:
+    path: "apps/web"
+    description: "Marketing website (Next.js)"
+    port: 3001
+    risk: low
+    domain: marketing
+    dependencies:
+      - "@repo/design-system"
+
+  docs:
+    path: "apps/docs"
+    description: "Public documentation site"
+    port: 3004
+    risk: low
+    domain: docs
+    dependencies: []
+
+  email:
+    path: "apps/email"
+    description: "Email templates (React Email)"
+    port: 3003
+    risk: low
+    domain: email
+    dependencies:
+      - "@repo/email"
+
+  storybook:
+    path: "apps/storybook"
+    description: "Component library explorer (Storybook)"
+    port: 6006
+    risk: low
+    domain: design
+    dependencies:
+      - "@repo/design-system"
+
+packages:
+  auth:
+    path: "packages/auth"
+    description: "Authentication"
+    domain: auth
+
+  database:
+    path: "packages/database"
+    description: "Database ORM"
+    domain: database
+    risk: high
+
+  design-system:
+    path: "packages/design-system"
+    description: "UI components"
+    domain: design
+
+  email:
+    path: "packages/email"
+    description: "Email sending"
+    domain: email
+
+  observability:
+    path: "packages/observability"
+    description: "Logging, error tracking, monitoring"
+    domain: observability
+
+  typescript-config:
+    path: "packages/typescript-config"
+    description: "Shared TypeScript configuration"
+    domain: infra
+
+knowledge:
+  entry_point: "docs/_index.md"
+  architecture: "docs/architecture/"
+  decisions: "docs/decisions/"
+  runbooks: "docs/runbooks/"
+  schemas: "docs/schemas/"

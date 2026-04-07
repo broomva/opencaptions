@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "installedLayers": [
+    "all",
+    "control",
+    "harness",
+    "knowledge",
+    "consciousness",
+    "autoany"
+  ],
+  "packageManager": "bun",
+  "createdAt": "2026-04-07T04:29:22.134Z",
+  "updatedAt": "2026-04-07T04:33:04.107Z"
+}
