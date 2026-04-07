@@ -5,12 +5,7 @@
  * Phase 2: Canvas/DOM renderers (not yet implemented)
  */
 
-import type {
-	CWIDocument,
-	CaptionEvent,
-	CWIWord,
-	Speaker,
-} from "@opencaptions/types";
+import type { CWIDocument, CWIWord, CaptionEvent, Speaker } from "@opencaptions/types";
 
 // ============================================================================
 // ANSI Color Helpers
@@ -63,15 +58,7 @@ function formatVTTTime(seconds: number): string {
 	const m = Math.floor((seconds % 3600) / 60);
 	const s = Math.floor(seconds % 60);
 	const ms = Math.round((seconds % 1) * 1000);
-	return (
-		String(h).padStart(2, "0") +
-		":" +
-		String(m).padStart(2, "0") +
-		":" +
-		String(s).padStart(2, "0") +
-		"." +
-		String(ms).padStart(3, "0")
-	);
+	return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(ms).padStart(3, "0")}`;
 }
 
 /** Find a speaker in the cast by id. Returns undefined if not found. */
@@ -88,11 +75,7 @@ function findSpeaker(doc: CWIDocument, speakerId: string): Speaker | undefined {
  * - Weight > 500: bold
  * - Weight < 300: dim
  */
-function renderWord(
-	word: CWIWord,
-	speakerColor: string,
-	currentTime: number,
-): string {
+function renderWord(word: CWIWord, speakerColor: string, currentTime: number): string {
 	const { r, g, b } = hexToRgb(speakerColor);
 	const colorOpen = `\x1b[38;2;${r};${g};${b}m`;
 	const reset = "\x1b[0m";
@@ -134,15 +117,9 @@ export class TerminalRenderer {
 	 * Render a single caption event as colored terminal text.
 	 * Shows speaker name in their color followed by their words.
 	 */
-	renderEvent(
-		event: CaptionEvent,
-		speaker: Speaker,
-		currentTime: number,
-	): string {
+	renderEvent(event: CaptionEvent, speaker: Speaker, currentTime: number): string {
 		const label = ansiColor(speaker.color, `${speaker.name}:`);
-		const words = event.words
-			.map((w) => renderWord(w, speaker.color, currentTime))
-			.join(" ");
+		const words = event.words.map((w) => renderWord(w, speaker.color, currentTime)).join(" ");
 		return `${label} ${words}`;
 	}
 
@@ -151,9 +128,7 @@ export class TerminalRenderer {
 	 * A caption event is active if its time range overlaps currentTime.
 	 */
 	renderFrame(doc: CWIDocument, currentTime: number): string {
-		const activeEvents = doc.captions.filter(
-			(e) => e.start <= currentTime && e.end >= currentTime,
-		);
+		const activeEvents = doc.captions.filter((e) => e.start <= currentTime && e.end >= currentTime);
 
 		if (activeEvents.length === 0) {
 			return "";

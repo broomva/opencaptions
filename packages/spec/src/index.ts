@@ -311,10 +311,7 @@ function fcc001(doc: CWIDocument): ValidationFinding[] {
 function fcc002(doc: CWIDocument): ValidationFinding[] {
 	const findings: ValidationFinding[] = [];
 	for (const event of doc.captions) {
-		const lineLength = event.words.reduce(
-			(sum, w, i) => sum + w.text.length + (i > 0 ? 1 : 0),
-			0,
-		);
+		const lineLength = event.words.reduce((sum, w, i) => sum + w.text.length + (i > 0 ? 1 : 0), 0);
 		if (lineLength > CWI_DEFAULTS.MAX_CHARS_PER_LINE) {
 			findings.push({
 				rule_id: "FCC_002",

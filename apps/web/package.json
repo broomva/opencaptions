@@ -1,7 +1,7 @@
 {
-  "name": "@opencaptions/web",
-  "version": "0.1.0",
-  "private": true,
-  "description": "OpenCaptions web dashboard — Phase 2",
-  "scripts": {}
+	"name": "@opencaptions/web",
+	"version": "0.1.0",
+	"private": true,
+	"description": "OpenCaptions web dashboard — Phase 2",
+	"scripts": {}
 }

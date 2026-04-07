@@ -15,13 +15,13 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { CWIDocument } from "@opencaptions/types";
-import { validate } from "@opencaptions/spec";
+import { createV1Backends } from "@opencaptions/backend-av";
 import { Pipeline } from "@opencaptions/pipeline";
 import { rulesMapper } from "@opencaptions/pipeline";
-import { createV1Backends } from "@opencaptions/backend-av";
 import { TerminalRenderer, exportWebVTT } from "@opencaptions/renderer";
+import { validate } from "@opencaptions/spec";
 import { TracingCollector } from "@opencaptions/tracing";
+import type { CWIDocument } from "@opencaptions/types";
 
 // ============================================================================
 // CLI Helpers
@@ -80,7 +80,8 @@ async function cmdGenerate(args: string[]) {
 	}
 
 	const outputIdx = args.indexOf("--output");
-	const outputPath = outputIdx !== -1 ? args[outputIdx + 1] : videoPath.replace(/\.[^.]+$/, ".cwi.json");
+	const outputPath =
+		outputIdx !== -1 ? args[outputIdx + 1] : videoPath.replace(/\.[^.]+$/, ".cwi.json");
 
 	print(`${BOLD}Generating CWI captions${RESET} from ${CYAN}${videoPath}${RESET}\n`);
 
@@ -100,17 +101,27 @@ async function cmdGenerate(args: string[]) {
 		printSuccess(`Pipeline complete in ${elapsed}s`);
 		print("");
 		printSuccess(`Transcript     ${(result.trace.stages.transcript_ms / 1000).toFixed(1)}s`);
-		printSuccess(`Diarization    ${(result.trace.stages.diarization_ms / 1000).toFixed(1)}s  ${result.trace.input.speaker_count} speakers`);
+		printSuccess(
+			`Diarization    ${(result.trace.stages.diarization_ms / 1000).toFixed(1)}s  ${result.trace.input.speaker_count} speakers`,
+		);
 		printSuccess(`Intent         ${(result.trace.stages.extraction_ms / 1000).toFixed(1)}s`);
 		printSuccess(`Mapping        ${(result.trace.stages.mapping_ms / 1000).toFixed(1)}s`);
 
 		// Validate
 		const report = validate(result.document);
-		printSuccess(`Validation     Score: ${report.overall_score}/100  ${report.passed ? "PASSED" : "FAILED"}`);
+		printSuccess(
+			`Validation     Score: ${report.overall_score}/100  ${report.passed ? "PASSED" : "FAILED"}`,
+		);
 		print("");
-		print(`  Attribution:     ${report.pillars.attribution.score}/100 ${report.pillars.attribution.passed ? "✓" : "✗"}`);
-		print(`  Synchronization: ${report.pillars.synchronization.score}/100 ${report.pillars.synchronization.passed ? "✓" : "✗"}`);
-		print(`  Intonation:      ${report.pillars.intonation.score}/100 ${report.pillars.intonation.passed ? "✓" : "✗"}`);
+		print(
+			`  Attribution:     ${report.pillars.attribution.score}/100 ${report.pillars.attribution.passed ? "✓" : "✗"}`,
+		);
+		print(
+			`  Synchronization: ${report.pillars.synchronization.score}/100 ${report.pillars.synchronization.passed ? "✓" : "✗"}`,
+		);
+		print(
+			`  Intonation:      ${report.pillars.intonation.score}/100 ${report.pillars.intonation.passed ? "✓" : "✗"}`,
+		);
 		print("");
 
 		// Write output
@@ -146,10 +157,18 @@ async function cmdValidate(args: string[]) {
 		const report = validate(doc);
 
 		print(`${BOLD}Validation Report${RESET}\n`);
-		print(`  Overall: ${report.passed ? `${GREEN}PASSED${RESET}` : `${RED}FAILED${RESET}`}  Score: ${report.overall_score}/100\n`);
-		print(`  Attribution:     ${report.pillars.attribution.score}/100 ${report.pillars.attribution.passed ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}`}`);
-		print(`  Synchronization: ${report.pillars.synchronization.score}/100 ${report.pillars.synchronization.passed ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}`}`);
-		print(`  Intonation:      ${report.pillars.intonation.score}/100 ${report.pillars.intonation.passed ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}`}`);
+		print(
+			`  Overall: ${report.passed ? `${GREEN}PASSED${RESET}` : `${RED}FAILED${RESET}`}  Score: ${report.overall_score}/100\n`,
+		);
+		print(
+			`  Attribution:     ${report.pillars.attribution.score}/100 ${report.pillars.attribution.passed ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}`}`,
+		);
+		print(
+			`  Synchronization: ${report.pillars.synchronization.score}/100 ${report.pillars.synchronization.passed ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}`}`,
+		);
+		print(
+			`  Intonation:      ${report.pillars.intonation.score}/100 ${report.pillars.intonation.passed ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}`}`,
+		);
 
 		// Show findings
 		const allFindings = [
@@ -161,7 +180,8 @@ async function cmdValidate(args: string[]) {
 		if (allFindings.length > 0) {
 			print(`\n  ${BOLD}Findings:${RESET}`);
 			for (const f of allFindings) {
-				const icon = f.severity === "error" ? RED + "✗" : f.severity === "warning" ? YELLOW + "!" : DIM + "i";
+				const icon =
+					f.severity === "error" ? `${RED}✗` : f.severity === "warning" ? `${YELLOW}!` : `${DIM}i`;
 				print(`    ${icon}${RESET} [${f.rule_id}] ${f.message}`);
 			}
 		}
@@ -289,10 +309,14 @@ async function main() {
 			await cmdTelemetry(commandArgs);
 			break;
 		case "annotate":
-			print(`${YELLOW}annotate${RESET} command coming soon — use the web editor at opencaptions.tools`);
+			print(
+				`${YELLOW}annotate${RESET} command coming soon — use the web editor at opencaptions.tools`,
+			);
 			break;
 		case "setup":
-			print(`${YELLOW}setup${RESET} command coming soon — install Python dependencies manually for now`);
+			print(
+				`${YELLOW}setup${RESET} command coming soon — install Python dependencies manually for now`,
+			);
 			break;
 		case "doctor":
 			print(`${YELLOW}doctor${RESET} command coming soon`);

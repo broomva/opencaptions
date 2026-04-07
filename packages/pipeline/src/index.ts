@@ -9,8 +9,8 @@ import type {
 	CWIDocument,
 	CWIWord,
 	CaptionEvent,
-	DiarizedWord,
 	DiarizationBackend,
+	DiarizedWord,
 	IntentExtractorBackend,
 	IntentFrame,
 	IntentMapper,
@@ -25,11 +25,16 @@ import type {
 	WordIntent,
 } from "@opencaptions/types";
 
-import {
-	CWI_SCHEMA_URI,
-	CWI_VERSION,
-	SPEAKER_COLORS,
-} from "@opencaptions/types";
+import { CWI_SCHEMA_URI, CWI_VERSION, SPEAKER_COLORS } from "@opencaptions/types";
+
+const DEFAULT_VOICE_PROFILE: VoiceProfile = {
+	pitch_baseline_hz: 150,
+	pitch_p10: 100,
+	pitch_p90: 200,
+	volume_baseline_db: -20,
+	volume_p10: -30,
+	volume_p90: -10,
+};
 
 // ============================================================================
 // Helpers
@@ -62,18 +67,11 @@ function mean(values: number[]): number {
  * Compute a speaker's voice profile from their IntentFrames.
  * Baseline = mean, p10 = 10th percentile, p90 = 90th percentile.
  */
-export function computeVoiceProfile(
-	frames: IntentFrame[],
-	speakerId: string,
-): VoiceProfile {
+export function computeVoiceProfile(frames: IntentFrame[], speakerId: string): VoiceProfile {
 	const speakerFrames = frames.filter((f) => f.speaker_id === speakerId);
 
-	const pitches = speakerFrames
-		.map((f) => f.vocal.pitch_mean_hz)
-		.sort((a, b) => a - b);
-	const volumes = speakerFrames
-		.map((f) => f.vocal.volume_mean_db)
-		.sort((a, b) => a - b);
+	const pitches = speakerFrames.map((f) => f.vocal.pitch_mean_hz).sort((a, b) => a - b);
+	const volumes = speakerFrames.map((f) => f.vocal.volume_mean_db).sort((a, b) => a - b);
 
 	return {
 		pitch_baseline_hz: mean(pitches),
@@ -89,9 +87,7 @@ export function computeVoiceProfile(
  * Assign speaker colors from the SPEAKER_COLORS palette in order of first appearance.
  * Wraps around if more speakers than colors.
  */
-export function assignSpeakerColors(
-	speakerIds: string[],
-): Map<string, string> {
+export function assignSpeakerColors(speakerIds: string[]): Map<string, string> {
 	const map = new Map<string, string>();
 	for (let i = 0; i < speakerIds.length; i++) {
 		map.set(speakerIds[i], SPEAKER_COLORS[i % SPEAKER_COLORS.length]);
@@ -118,12 +114,10 @@ export const rulesMapper: IntentMapper = (
 	override?: WordIntent,
 ): Pick<CWIWord, "weight" | "size" | "emphasis"> => {
 	// Utterance-level derivation
-	const baseWeight =
-		Math.round(lerp(200, 700, frame.vocal.pitch_normalized) / 100) * 100;
+	const baseWeight = Math.round(lerp(200, 700, frame.vocal.pitch_normalized) / 100) * 100;
 	const baseSize = lerp(0.8, 1.35, frame.vocal.volume_normalized);
 	const baseEmphasis =
-		frame.semantic.emphasis_words.includes(word.text) ||
-		frame.vocal.volume_normalized > 0.85;
+		frame.semantic.emphasis_words.includes(word.text) || frame.vocal.volume_normalized > 0.85;
 
 	// Apply word-level overrides if present
 	const weight = override?.weight_override ?? baseWeight;
@@ -159,10 +153,7 @@ export class Pipeline {
 		this.mapper = config.mapper ?? rulesMapper;
 	}
 
-	async run(
-		input: VideoInput,
-		options?: PipelineOptions,
-	): Promise<PipelineResult> {
+	async run(input: VideoInput, options?: PipelineOptions): Promise<PipelineResult> {
 		const activeMapper = options?.mapper ?? this.mapper;
 		const stages = {
 			transcript_ms: 0,
@@ -179,18 +170,12 @@ export class Pipeline {
 
 		// Stage 2: Diarization
 		const t1 = performance.now();
-		const diarizedTranscript = await this.diarization.diarize(
-			rawTranscript,
-			input,
-		);
+		const diarizedTranscript = await this.diarization.diarize(rawTranscript, input);
 		stages.diarization_ms = performance.now() - t1;
 
 		// Stage 3: Intent extraction
 		const t2 = performance.now();
-		const intentFrames = await this.extractor.extract(
-			diarizedTranscript,
-			input,
-		);
+		const intentFrames = await this.extractor.extract(diarizedTranscript, input);
 		stages.extraction_ms = performance.now() - t2;
 
 		// Derive unique speaker IDs in order of first appearance
@@ -215,8 +200,8 @@ export class Pipeline {
 		const cast: Speaker[] = speakerIds.map((id, i) => ({
 			id,
 			name: `Speaker ${i + 1}`,
-			color: colorMap.get(id)!,
-			voice_profile: voiceProfiles.get(id)!,
+			color: colorMap.get(id) ?? SPEAKER_COLORS[i % SPEAKER_COLORS.length],
+			voice_profile: voiceProfiles.get(id) ?? DEFAULT_VOICE_PROFILE,
 		}));
 
 		// Apply cast_overrides from options
@@ -241,22 +226,18 @@ export class Pipeline {
 		const captions: CaptionEvent[] = [];
 
 		for (const frame of intentFrames) {
-			const speaker = speakerLookup.get(frame.speaker_id)!;
+			const speaker = speakerLookup.get(frame.speaker_id);
+			if (!speaker) continue;
 
 			// Find diarized words belonging to this frame's time range
 			const frameWords = diarizedTranscript.words.filter(
-				(w) =>
-					w.speaker_id === frame.speaker_id &&
-					w.start >= frame.start &&
-					w.end <= frame.end,
+				(w) => w.speaker_id === frame.speaker_id && w.start >= frame.start && w.end <= frame.end,
 			);
 
 			const cwiWords: CWIWord[] = frameWords.map((dw) => {
 				// Find word-level override if any
 				const wordIdx = diarizedTranscript.words.indexOf(dw);
-				const override = frame.word_overrides.find(
-					(wo) => wo.word_index === wordIdx,
-				);
+				const override = frame.word_overrides.find((wo) => wo.word_index === wordIdx);
 
 				const mapped = activeMapper(dw, frame, speaker, override);
 
@@ -286,10 +267,7 @@ export class Pipeline {
 		const t4 = performance.now();
 		const totalWords = captions.reduce((n, c) => n + c.words.length, 0);
 
-		const extractorBackend =
-			intentFrames.length > 0
-				? intentFrames[0].extractor_id
-				: "unknown";
+		const extractorBackend = intentFrames.length > 0 ? intentFrames[0].extractor_id : "unknown";
 
 		const documentId = crypto.randomUUID();
 

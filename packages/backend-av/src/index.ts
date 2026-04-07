@@ -15,9 +15,10 @@
 
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { homedir } from "node:os";
+import { join } from "node:path";
 import type {
+	DiarizationBackend,
 	DiarizedTranscript,
 	DiarizedWord,
 	Emotion,
@@ -25,7 +26,6 @@ import type {
 	IntentFrame,
 	RawTranscript,
 	RawWord,
-	DiarizationBackend,
 	SpeakerSegment,
 	TranscriptBackend,
 	VideoInput,
@@ -112,12 +112,7 @@ export class WhisperTranscriptBackend implements TranscriptBackend {
 			return this.transcribeViaCli(input);
 		}
 
-		const result = await runPython(scriptPath, [
-			"--input",
-			input.path,
-			"--model",
-			this.modelSize,
-		]);
+		const result = await runPython(scriptPath, ["--input", input.path, "--model", this.modelSize]);
 
 		return parseJsonOutput<RawTranscript>(result, "Whisper transcription");
 	}
@@ -125,27 +120,27 @@ export class WhisperTranscriptBackend implements TranscriptBackend {
 	private async transcribeViaCli(input: VideoInput): Promise<RawTranscript> {
 		// Try whisper.cpp via command line
 		const result = await new Promise<SubprocessResult>((resolve, reject) => {
-			const proc = spawn("whisper-cpp", [
-				"--model",
-				this.modelSize,
-				"--output-json",
-				"--word-timestamps",
-				input.path,
-			], { stdio: ["pipe", "pipe", "pipe"] });
+			const proc = spawn(
+				"whisper-cpp",
+				["--model", this.modelSize, "--output-json", "--word-timestamps", input.path],
+				{ stdio: ["pipe", "pipe", "pipe"] },
+			);
 
 			let stdout = "";
 			let stderr = "";
-			proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
-			proc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
+			proc.stdout.on("data", (d: Buffer) => {
+				stdout += d.toString();
+			});
+			proc.stderr.on("data", (d: Buffer) => {
+				stderr += d.toString();
+			});
 			proc.on("close", (code) => resolve({ stdout, stderr, exitCode: code ?? 1 }));
 			proc.on("error", reject);
 		});
 
 		if (result.exitCode !== 0) {
 			throw new Error(
-				`Whisper transcription failed. Ensure whisper.cpp is installed.\n` +
-				`Run: opencaptions setup\n` +
-				`Error: ${result.stderr}`,
+				`Whisper transcription failed. Ensure whisper.cpp is installed.\nRun: opencaptions setup\nError: ${result.stderr}`,
 			);
 		}
 
@@ -173,9 +168,7 @@ export class PyAnnoteDiarizationBackend implements DiarizationBackend {
 		// Assign speaker IDs to words based on segments
 		const words: DiarizedWord[] = transcript.words.map((w) => {
 			const midpoint = (w.start + w.end) / 2;
-			const segment = segments.segments.find(
-				(s) => midpoint >= s.start && midpoint <= s.end,
-			);
+			const segment = segments.segments.find((s) => midpoint >= s.start && midpoint <= s.end);
 			return { ...w, speaker_id: segment?.speaker_id ?? "S0" };
 		});
 
@@ -204,10 +197,7 @@ export class PyAnnoteDiarizationBackend implements DiarizationBackend {
 // ============================================================================
 
 export class AudioVisionExtractor implements IntentExtractorBackend {
-	async extract(
-		transcript: DiarizedTranscript,
-		input: VideoInput,
-	): Promise<IntentFrame[]> {
+	async extract(transcript: DiarizedTranscript, input: VideoInput): Promise<IntentFrame[]> {
 		// Group words into utterances by speaker turns
 		const utterances = this.groupIntoUtterances(transcript);
 
@@ -245,9 +235,7 @@ export class AudioVisionExtractor implements IntentExtractorBackend {
 					speech_rate_wpm: vocal.speech_rate_wpm,
 					pause_before_ms: idx > 0 ? (utt.start - utterances[idx - 1].end) * 1000 : 0,
 					pause_after_ms:
-						idx < utterances.length - 1
-							? (utterances[idx + 1].start - utt.end) * 1000
-							: 0,
+						idx < utterances.length - 1 ? (utterances[idx + 1].start - utt.end) * 1000 : 0,
 				},
 				affect: {
 					valence: emotion.valence,
@@ -267,9 +255,7 @@ export class AudioVisionExtractor implements IntentExtractorBackend {
 		});
 	}
 
-	private groupIntoUtterances(
-		transcript: DiarizedTranscript,
-	): Utterance[] {
+	private groupIntoUtterances(transcript: DiarizedTranscript): Utterance[] {
 		const utterances: Utterance[] = [];
 		let current: Utterance | null = null;
 
