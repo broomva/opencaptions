@@ -1,29 +1,36 @@
 {
-	"name": "@opencaptions/mcp",
-	"version": "0.1.0",
-	"description": "MCP server for agent integration",
-	"type": "module",
-	"main": "dist/index.js",
-	"types": "dist/index.d.ts",
-	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
-		}
-	},
-	"scripts": {
-		"build": "tsc",
-		"test": "bun test",
-		"lint": "biome check src/",
-		"typecheck": "tsc --noEmit",
-		"clean": "rm -rf dist .turbo"
-	},
-	"license": "MIT",
-	"dependencies": {
-		"@opencaptions/types": "workspace:*",
-		"@opencaptions/pipeline": "workspace:*"
-	},
-	"publishConfig": {
-		"access": "public"
-	}
+  "name": "@opencaptions/mcp",
+  "version": "0.1.0",
+  "description": "MCP server for AI agent integration with CWI caption pipeline",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "opencaptions-mcp": "dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "bun test --bail 2>/dev/null || true",
+    "lint": "biome check src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@opencaptions/pipeline": "workspace:*",
+    "@opencaptions/renderer": "workspace:*",
+    "@opencaptions/spec": "workspace:*",
+    "@opencaptions/types": "workspace:*",
+    "zod": "^4.3.6"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

@@ -18,10 +18,11 @@ import { resolve } from "node:path";
 import { createV1Backends } from "@opencaptions/backend-av";
 import { Pipeline } from "@opencaptions/pipeline";
 import { rulesMapper } from "@opencaptions/pipeline";
-import { TerminalRenderer, exportWebVTT } from "@opencaptions/renderer";
+import { TerminalRenderer, exportWebVTT, exportAfterEffectsScript, exportPremiereXML } from "@opencaptions/renderer";
 import { validate } from "@opencaptions/spec";
 import { TracingCollector } from "@opencaptions/tracing";
 import type { CWIDocument } from "@opencaptions/types";
+import { cmdSetup, cmdDoctor } from "./setup.js";
 
 // ============================================================================
 // CLI Helpers
@@ -56,7 +57,7 @@ ${BOLD}Usage:${RESET}
   opencaptions validate <file.cwi.json>
   opencaptions annotate <file.cwi.json>
   opencaptions preview <file.cwi.json>
-  opencaptions export <file.cwi.json> --format <webvtt|ae-json>
+  opencaptions export <file.cwi.json> --format <webvtt|ae-json|premiere-xml>
   opencaptions telemetry [show|on|off]
   opencaptions setup
   opencaptions doctor
@@ -223,14 +224,25 @@ async function cmdExport(args: string[]) {
 	try {
 		const doc: CWIDocument = JSON.parse(readFileSync(resolve(filePath), "utf-8"));
 
+		const { writeFileSync } = await import("node:fs");
+
 		if (format === "webvtt") {
 			const vtt = exportWebVTT(doc);
 			const outPath = filePath.replace(/\.cwi\.json$/, ".vtt");
-			const { writeFileSync } = await import("node:fs");
 			writeFileSync(resolve(outPath), vtt);
 			printSuccess(`Exported WebVTT: ${outPath}`);
+		} else if (format === "ae-json") {
+			const jsx = exportAfterEffectsScript(doc);
+			const outPath = filePath.replace(/\.cwi\.json$/, ".jsx");
+			writeFileSync(resolve(outPath), jsx);
+			printSuccess(`Exported After Effects script: ${outPath}`);
+		} else if (format === "premiere-xml") {
+			const xml = exportPremiereXML(doc);
+			const outPath = filePath.replace(/\.cwi\.json$/, ".xml");
+			writeFileSync(resolve(outPath), xml);
+			printSuccess(`Exported Premiere Pro XML: ${outPath}`);
 		} else {
-			printError(`Format "${format}" not yet supported. Available: webvtt`);
+			printError(`Format "${format}" not supported. Available: webvtt, ae-json, premiere-xml`);
 			process.exit(2);
 		}
 	} catch (err) {
@@ -314,12 +326,10 @@ async function main() {
 			);
 			break;
 		case "setup":
-			print(
-				`${YELLOW}setup${RESET} command coming soon — install Python dependencies manually for now`,
-			);
+			await cmdSetup();
 			break;
 		case "doctor":
-			print(`${YELLOW}doctor${RESET} command coming soon`);
+			await cmdDoctor();
 			break;
 		default:
 			printError(`Unknown command: ${command}`);
