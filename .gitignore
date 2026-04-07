@@ -30,3 +30,6 @@ Thumbs.db
 venv/
 __pycache__/
 *.pyc
+
+# Test media (generated, not tracked)
+fixtures/test-media/

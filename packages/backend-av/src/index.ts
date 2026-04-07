@@ -91,7 +91,22 @@ function parseJsonOutput<T>(result: SubprocessResult, context: string): T {
 // Scripts directory
 // ============================================================================
 
-const SCRIPTS_DIR = join(import.meta.dirname ?? __dirname, "..", "scripts");
+// Resolve scripts relative to this file's package root, not the importing module
+const SCRIPTS_DIR = (() => {
+	// When running from source (bun run src/index.ts), use relative path
+	const fromSrc = join(import.meta.dirname ?? __dirname, "..", "scripts");
+	if (existsSync(fromSrc)) return fromSrc;
+	// When running from dist (compiled), go up one more level
+	const fromDist = join(import.meta.dirname ?? __dirname, "..", "..", "scripts");
+	if (existsSync(fromDist)) return fromDist;
+	// Fallback: try finding it from the package root via require.resolve
+	try {
+		const pkgDir = join(require.resolve("@opencaptions/backend-av/package.json"), "..");
+		return join(pkgDir, "scripts");
+	} catch {
+		return fromSrc; // best effort
+	}
+})();
 
 // ============================================================================
 // WhisperTranscriptBackend
@@ -100,7 +115,7 @@ const SCRIPTS_DIR = join(import.meta.dirname ?? __dirname, "..", "scripts");
 export class WhisperTranscriptBackend implements TranscriptBackend {
 	private modelSize: string;
 
-	constructor(modelSize = "large-v3") {
+	constructor(modelSize = "small") {
 		this.modelSize = modelSize;
 	}
 
