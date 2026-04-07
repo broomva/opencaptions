@@ -1,139 +1,117 @@
-# ▲ / next-forge
+# OpenCaptions
 
-**Production-grade Turborepo template for Next.js apps.**
+> Feel the film. Render the intent.
 
-<div>
-  <img src="https://img.shields.io/npm/dy/next-forge" alt="" />
-  <img src="https://img.shields.io/npm/v/next-forge" alt="" />
-  <img src="https://img.shields.io/github/license/vercel/next-forge" alt="" />
-</div>
+Open-source video understanding pipeline that generates [Caption with Intention (CWI)](https://www.captionwithintention.org/) compliant captions by extracting cinematic intent from video.
 
-## Overview
+Built on [next-forge](https://github.com/vercel/next-forge) + [symphony-forge](https://github.com/broomva/symphony-forge).
 
-[next-forge](https://github.com/vercel/next-forge) is a production-grade [Turborepo](https://turborepo.com) template for [Next.js](https://nextjs.org/) apps. It's designed to be a comprehensive starting point for building SaaS applications, providing a solid, opinionated foundation with minimal configuration required.
+## What is this?
 
-Built on a decade of experience building web applications, next-forge balances speed and quality to help you ship thoroughly-built products faster.
+Caption with Intention won an Oscar (2025) and two Cannes Lions Grand Prix. It transforms flat, static captions into expressive visual storytelling through:
 
-### Philosophy
+- **Attribution** — color-coded speaker identification
+- **Synchronization** — word-by-word animation synced to speech
+- **Intonation** — variable font weight and size conveying pitch, volume, and emotion
 
-next-forge is built around five core principles:
+OpenCaptions is the first programmatic toolchain for CWI. Point it at a video, and it extracts intent — pitch, volume, emotion, emphasis, sarcasm, pacing — then renders that felt experience as CWI visual language.
 
-- **Fast** — Quick to build, run, deploy, and iterate on
-- **Cheap** — Free to start with services that scale with you
-- **Opinionated** — Integrated tooling designed to work together
-- **Modern** — Latest stable features with healthy community support
-- **Safe** — End-to-end type safety and robust security posture
+## Quick Start
 
-## Demo
+```bash
+# Install
+npx opencaptions setup
 
-Experience next-forge in action:
+# Generate CWI captions from a video
+npx opencaptions generate film.mp4
 
-- [Web](https://demo.next-forge.com) — Marketing website
-- [App](https://app.demo.next-forge.com) — Main application
-- [Storybook](https://storybook.demo.next-forge.com) — Component library
-- [API](https://api.demo.next-forge.com/health) — API health check
+# Validate a CWI document
+npx opencaptions validate film.cwi.json
 
-## Features
+# Preview in terminal
+npx opencaptions preview film.cwi.json
 
-next-forge comes with batteries included:
+# Export to WebVTT (FCC-compliant fallback)
+npx opencaptions export film.cwi.json --format webvtt
+```
+
+## Architecture
+
+```
+VideoInput
+  → TranscriptBackend (V1: whisper.cpp)
+  → DiarizationBackend (V1: pyannote-audio)
+  → IntentExtractorBackend (V1: audio+vision, V2: V-JEPA2, V3: TRIBE v2)
+  → IntentMapper (V1: RulesMapper, V2: LearnedMapper, V3: NeuralMapper)
+  → CWIValidator → ValidationReport
+  → TracingCollector (opt-in feedback flywheel)
+```
+
+## Packages
+
+### CWI Pipeline (`@opencaptions/*`)
+
+| Package | Description |
+|---------|-------------|
+| `@opencaptions/types` | Core TypeScript types + JSON Schema |
+| `@opencaptions/spec` | 12-rule CWI validation engine |
+| `@opencaptions/layout` | Pretext-compatible word geometry |
+| `@opencaptions/pipeline` | Orchestrator + RulesMapper |
+| `@opencaptions/backend-av` | V1: Whisper + pyannote + audio analysis |
+| `@opencaptions/renderer` | Terminal renderer + WebVTT exporter |
+| `@opencaptions/tracing` | Opt-in anonymous telemetry |
+| `@opencaptions/mcp` | MCP server for AI agents |
+| `opencaptions` | Bun CLI |
+
+### Infrastructure (`@repo/*`)
+
+| Package | Description |
+|---------|-------------|
+| `@repo/auth` | Authentication (Better Auth) |
+| `@repo/payments` | Billing (Stripe) |
+| `@repo/database` | Data layer (Prisma) |
+| `@repo/design-system` | UI components (shadcn/ui) |
 
 ### Apps
 
-- **Web** — Marketing site built with Tailwind CSS and TWBlocks
-- **App** — Main application with authentication and database integration
-- **API** — RESTful API with health checks and monitoring
-- **Docs** — Documentation site powered by Mintlify
-- **Email** — Email templates with React Email
-- **Storybook** — Component development environment
+| App | Description |
+|-----|-------------|
+| `apps/web` | Landing page — opencaptions.tools |
+| `apps/app` | Dashboard — reports, badges, billing |
+| `apps/api` | Hosted pipeline API |
+| `apps/docs` | Documentation (Mintlify) |
 
-### Packages
+## Development
 
-- **Authentication** — Powered by [Clerk](https://clerk.com)
-- **Database** — Type-safe ORM with migrations
-- **Design System** — Comprehensive component library with dark mode
-- **Payments** — Subscription management via [Stripe](https://stripe.com)
-- **Email** — Transactional emails via [Resend](https://resend.com)
-- **Analytics** — Web ([Google Analytics](https://developers.google.com/analytics)) and product ([Posthog](https://posthog.com))
-- **Observability** — Error tracking ([Sentry](https://sentry.io)), logging, and uptime monitoring ([BetterStack](https://betterstack.com))
-- **Security** — Application security ([Arcjet](https://arcjet.com)), rate limiting, and secure headers
-- **CMS** — Type-safe content management for blogs and documentation
-- **SEO** — Metadata management, sitemaps, and JSON-LD
-- **AI** — AI integration utilities
-- **Webhooks** — Inbound and outbound webhook handling
-- **Collaboration** — Real-time features with avatars and live cursors
-- **Feature Flags** — Feature flag management
-- **Cron** — Scheduled job management
-- **Storage** — File upload and management
-- **Internationalization** — Multi-language support
-- **Notifications** — In-app notification system
+```bash
+# Install dependencies
+bun install
 
-## Getting Started
+# Build all packages
+bun run build
 
-### Prerequisites
+# Development mode
+bun run dev
 
-- Node.js 20+
-- [Bun](https://bun.sh) (or npm/yarn/pnpm)
-- [Stripe CLI](https://docs.stripe.com/stripe-cli) for local webhook testing
+# Lint
+bun run check
 
-### Installation
-
-Create a new next-forge project:
-
-```sh
-npx next-forge@latest init
+# Control harness
+make -f Makefile.control smoke    # Quick validation
+make -f Makefile.control check    # Lint + typecheck
+make -f Makefile.control ci       # Full pipeline
+make -f Makefile.control audit    # Entropy audit
 ```
 
-### Setup
+## Pricing
 
-1. Configure your environment variables
-2. Set up required service accounts (Clerk, Stripe, Resend, etc.)
-3. Run the development server
-
-For detailed setup instructions, read the [documentation](https://www.next-forge.com/docs).
-
-## Structure
-
-next-forge uses a monorepo structure managed by Turborepo:
-
-```
-next-forge/
-├── apps/           # Deployable applications
-│   ├── web/        # Marketing website (port 3001)
-│   ├── app/        # Main application (port 3000)
-│   ├── api/        # API server
-│   ├── docs/       # Documentation
-│   ├── email/      # Email templates
-│   └── storybook/  # Component library
-└── packages/       # Shared packages
-    ├── design-system/
-    ├── database/
-    ├── auth/
-    └── ...
-```
-
-Each app is self-contained and independently deployable. Packages are shared across apps for consistency and maintainability.
-
-## Documentation
-
-Full documentation is available at [next-forge.com/docs](https://www.next-forge.com/docs), including:
-
-- Detailed setup guides
-- Package documentation
-- Migration guides for swapping providers
-- Deployment instructions
-- Examples and recipes
-
-## Contributing
-
-We welcome contributions! See the [contributing guide](https://github.com/vercel/next-forge/blob/main/.github/CONTRIBUTING.md) for details.
-
-## Contributors
-
-<a href="https://github.com/vercel/next-forge/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=vercel/next-forge" />
-</a>
-
-Made with [contrib.rocks](https://contrib.rocks).
+| Tier | Price | Included | Overage |
+|------|-------|----------|---------|
+| Free | $0 | CLI, unlimited local | — |
+| Starter | $9/mo | 30 min API | $0.50/min |
+| Pro | $29/mo | 200 min API | $0.25/min |
+| Studio | $99/mo | 1,000 min API | $0.15/min |
+| Enterprise | Custom | Unlimited | Negotiated |
 
 ## License
 

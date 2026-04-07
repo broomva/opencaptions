@@ -1,10 +1,13 @@
 {
   "name": "@opencaptions/mcp",
   "version": "0.1.0",
-  "description": "MCP server for agent integration",
+  "description": "MCP server for AI agent integration with CWI caption pipeline",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "opencaptions-mcp": "dist/index.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -20,8 +23,12 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@opencaptions/pipeline": "workspace:*",
+    "@opencaptions/renderer": "workspace:*",
+    "@opencaptions/spec": "workspace:*",
     "@opencaptions/types": "workspace:*",
-    "@opencaptions/pipeline": "workspace:*"
+    "zod": "^4.3.6"
   },
   "publishConfig": {
     "access": "public"

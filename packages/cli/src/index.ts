@@ -22,6 +22,7 @@ import { TerminalRenderer, exportWebVTT } from "@opencaptions/renderer";
 import { validate } from "@opencaptions/spec";
 import { TracingCollector } from "@opencaptions/tracing";
 import type { CWIDocument } from "@opencaptions/types";
+import { cmdSetup, cmdDoctor } from "./setup.js";
 
 // ============================================================================
 // CLI Helpers
@@ -314,12 +315,10 @@ async function main() {
 			);
 			break;
 		case "setup":
-			print(
-				`${YELLOW}setup${RESET} command coming soon — install Python dependencies manually for now`,
-			);
+			await cmdSetup();
 			break;
 		case "doctor":
-			print(`${YELLOW}doctor${RESET} command coming soon`);
+			await cmdDoctor();
 			break;
 		default:
 			printError(`Unknown command: ${command}`);

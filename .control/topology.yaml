@@ -61,6 +61,68 @@ apps:
       - "@repo/design-system"
 
 packages:
+  # OpenCaptions CWI Pipeline
+  types:
+    path: packages/types
+    description: "Core CWI type definitions and JSON Schema — zero deps, foundation for all packages"
+    domain: cwi-pipeline
+    risk: low
+  spec:
+    path: packages/spec
+    description: "12-rule CWI validation engine (ATT/SYN/INT/FCC pillars)"
+    domain: cwi-pipeline
+    risk: low
+    dependencies: [types]
+  layout:
+    path: packages/layout
+    description: "Pretext-compatible word geometry engine for CWI caption rendering"
+    domain: cwi-pipeline
+    risk: low
+    dependencies: [types]
+  pipeline:
+    path: packages/pipeline
+    description: "Pipeline orchestrator, RulesMapper, and backend interfaces"
+    domain: cwi-pipeline
+    risk: medium
+    dependencies: [types]
+  backend-av:
+    path: packages/backend-av
+    description: "V1 Audio+Vision intent extractor (Whisper, pyannote, parselmouth)"
+    domain: cwi-pipeline
+    risk: medium
+    dependencies: [types, pipeline]
+  backend-jepa:
+    path: packages/backend-jepa
+    description: "V2 V-JEPA2 world model extractor (stub)"
+    domain: cwi-pipeline
+    risk: low
+    dependencies: [types, pipeline]
+  renderer:
+    path: packages/renderer
+    description: "Terminal renderer (ANSI color) + WebVTT exporter"
+    domain: cwi-pipeline
+    risk: low
+    dependencies: [types, layout]
+  mcp:
+    path: packages/mcp
+    description: "MCP server for AI agent integration"
+    domain: cwi-pipeline
+    risk: low
+    dependencies: [types, pipeline]
+  tracing:
+    path: packages/tracing
+    description: "Opt-in anonymous telemetry and correction collection"
+    domain: cwi-pipeline
+    risk: medium
+    dependencies: [types]
+  cli:
+    path: packages/cli
+    description: "Bun CLI — generate, validate, preview, export, telemetry, setup, doctor"
+    domain: cwi-pipeline
+    risk: medium
+    dependencies: [types, spec, pipeline, backend-av, renderer, tracing]
+
+  # next-forge infrastructure
   auth:
     path: "packages/auth"
     description: "Authentication"
