@@ -136,19 +136,20 @@ function att003(doc: CWIDocument): ValidationFinding[] {
 	return findings;
 }
 
-/** SYN_001: All words have start/end timestamps (both > 0). */
+/** SYN_001: All words have valid timestamps (start >= 0, end > 0, end > start). */
 function syn001(doc: CWIDocument): ValidationFinding[] {
 	const findings: ValidationFinding[] = [];
 	for (const event of doc.captions) {
 		for (let i = 0; i < event.words.length; i++) {
 			const w = event.words[i];
-			if (!(w.start > 0) || !(w.end > 0)) {
+			if (w.start < 0 || w.end <= 0 || w.end <= w.start) {
 				findings.push({
 					rule_id: "SYN_001",
 					severity: "error",
 					message: `Word "${w.text}" in caption "${event.id}" has invalid timestamps (start=${w.start}, end=${w.end})`,
 					location: { caption_id: event.id, word_index: i },
-					suggestion: "Ensure all words have start and end timestamps greater than 0",
+					suggestion:
+						"Ensure all words have start >= 0, end > 0, and end > start",
 				});
 			}
 		}
