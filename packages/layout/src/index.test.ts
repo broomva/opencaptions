@@ -1,13 +1,13 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
+import type { CaptionEvent } from "@opencaptions/types";
 import {
-	layoutCaptionEvent,
+	easeTimingFunction,
 	estimateLineCount,
 	getWordAnimationProgress,
-	easeTimingFunction,
-	lerpColor,
 	hexToRgb,
+	layoutCaptionEvent,
+	lerpColor,
 } from "./index";
-import type { CaptionEvent } from "@opencaptions/types";
 
 // ============================================================================
 // Mock CaptionEvent with 5 words

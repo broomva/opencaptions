@@ -18,6 +18,7 @@
 		"@opencaptions/types": "workspace:*",
 		"@opencaptions/pipeline": "workspace:*",
 		"@opencaptions/backend-av": "workspace:*",
+		"@opencaptions/backend-tribe": "workspace:*",
 		"@opencaptions/renderer": "workspace:*",
 		"@opencaptions/tracing": "workspace:*",
 		"@opencaptions/spec": "workspace:*"

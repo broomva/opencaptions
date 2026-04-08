@@ -12,10 +12,6 @@
         "typescript": "^5.7.0",
       },
     },
-    "apps/web": {
-      "name": "@opencaptions/web",
-      "version": "0.1.0",
-    },
     "packages/backend-av": {
       "name": "@opencaptions/backend-av",
       "version": "0.1.0",
@@ -32,6 +28,14 @@
         "@opencaptions/types": "workspace:*",
       },
     },
+    "packages/backend-tribe": {
+      "name": "@opencaptions/backend-tribe",
+      "version": "0.1.0",
+      "dependencies": {
+        "@opencaptions/pipeline": "workspace:*",
+        "@opencaptions/types": "workspace:*",
+      },
+    },
     "packages/cli": {
       "name": "opencaptions",
       "version": "0.1.0",
@@ -40,6 +44,7 @@
       },
       "dependencies": {
         "@opencaptions/backend-av": "workspace:*",
+        "@opencaptions/backend-tribe": "workspace:*",
         "@opencaptions/pipeline": "workspace:*",
         "@opencaptions/renderer": "workspace:*",
         "@opencaptions/spec": "workspace:*",
@@ -136,6 +141,8 @@
 
     "@opencaptions/backend-jepa": ["@opencaptions/backend-jepa@workspace:packages/backend-jepa"],
 
+    "@opencaptions/backend-tribe": ["@opencaptions/backend-tribe@workspace:packages/backend-tribe"],
+
     "@opencaptions/layout": ["@opencaptions/layout@workspace:packages/layout"],
 
     "@opencaptions/mcp": ["@opencaptions/mcp@workspace:packages/mcp"],
@@ -149,8 +156,6 @@
     "@opencaptions/tracing": ["@opencaptions/tracing@workspace:packages/tracing"],
 
     "@opencaptions/types": ["@opencaptions/types@workspace:packages/types"],
-
-    "@opencaptions/web": ["@opencaptions/web@workspace:apps/web"],
 
     "@turbo/darwin-64": ["@turbo/darwin-64@2.9.4", "", { "os": "darwin", "cpu": "x64" }, "sha512-ZSlPqJ5Vqg/wgVw8P3AOVCIosnbBilOxLq7TMz3MN/9U46DUYfdG2jtfevNDufyxyrg98pcPs/GBgDRaaids6g=="],
 

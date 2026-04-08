@@ -16,6 +16,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createV1Backends } from "@opencaptions/backend-av";
+import { createTribeBackend, neuralMapper } from "@opencaptions/backend-tribe";
 import { Pipeline } from "@opencaptions/pipeline";
 import { rulesMapper } from "@opencaptions/pipeline";
 import {
@@ -58,7 +59,7 @@ function printUsage() {
 ${BOLD}opencaptions${RESET} — Feel the film. Render the intent.
 
 ${BOLD}Usage:${RESET}
-  opencaptions generate <video> [--output <file.cwi.json>]
+  opencaptions generate <video> [--output <file.cwi.json>] [--backend av|tribe]
   opencaptions validate <file.cwi.json>
   opencaptions annotate <file.cwi.json>
   opencaptions preview <file.cwi.json>
@@ -89,12 +90,25 @@ async function cmdGenerate(args: string[]) {
 	const outputPath =
 		outputIdx !== -1 ? args[outputIdx + 1] : videoPath.replace(/\.[^.]+$/, ".cwi.json");
 
-	print(`${BOLD}Generating CWI captions${RESET} from ${CYAN}${videoPath}${RESET}\n`);
+	const backendIdx = args.indexOf("--backend");
+	const backendType = backendIdx !== -1 ? args[backendIdx + 1] : "av";
 
-	const backends = createV1Backends();
+	const isNeural = backendType === "tribe" || backendType === "neural";
+
+	print(
+		`${BOLD}Generating CWI captions${RESET} from ${CYAN}${videoPath}${RESET}` +
+			` ${DIM}(${isNeural ? "TRIBE v2 neural" : "audio+vision"} backend)${RESET}\n`,
+	);
+
+	const avBackends = createV1Backends();
+	const extractor = isNeural ? createTribeBackend() : avBackends.extractor;
+	const mapper = isNeural ? neuralMapper : rulesMapper;
+
 	const pipeline = new Pipeline({
-		...backends,
-		mapper: rulesMapper,
+		transcript: avBackends.transcript,
+		diarization: avBackends.diarization,
+		extractor,
+		mapper,
 	});
 
 	const startTime = performance.now();

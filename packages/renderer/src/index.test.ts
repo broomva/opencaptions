@@ -1,7 +1,7 @@
-import { describe, test, expect } from "bun:test";
-import { exportWebVTT, TerminalRenderer, hexToRgb, ansiColor } from "./index";
-import dialogue from "../../../fixtures/valid/dialogue.cwi.json";
+import { describe, expect, test } from "bun:test";
 import type { CWIDocument } from "@opencaptions/types";
+import dialogue from "../../../fixtures/valid/dialogue.cwi.json";
+import { TerminalRenderer, ansiColor, exportWebVTT, hexToRgb } from "./index";
 
 const doc = dialogue as unknown as CWIDocument;
 
@@ -32,7 +32,7 @@ describe("exportWebVTT", () => {
 		const matches = vtt.match(timestampPattern);
 		// 4 cues * 2 timestamps each = 8
 		expect(matches).not.toBeNull();
-		expect(matches!.length).toBe(8);
+		expect(matches?.length).toBe(8);
 	});
 
 	test("contains the actual dialogue text", () => {
