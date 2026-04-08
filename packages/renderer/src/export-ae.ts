@@ -6,7 +6,7 @@
  *   2. Final Cut Pro XML (.xml) for Premiere Pro import — sequence with styled caption clips
  */
 
-import type { CWIDocument, CaptionEvent, CWIWord, Speaker } from "@opencaptions/types";
+import type { CWIDocument, CWIWord, CaptionEvent, Speaker } from "@opencaptions/types";
 import { CWI_DEFAULTS } from "@opencaptions/types";
 
 // ============================================================================
@@ -89,11 +89,11 @@ export function exportAfterEffectsScript(doc: CWIDocument, options?: AEExportOpt
 
 	// Script header
 	lines.push("// ==========================================================================");
-	lines.push(`// OpenCaptions — After Effects CWI Caption Script`);
+	lines.push("// OpenCaptions — After Effects CWI Caption Script");
 	lines.push(`// Generated from: ${escapeJS(title)}`);
 	lines.push(`// ${doc.captions.length} caption events, ${doc.cast.length} speakers`);
 	lines.push("// ==========================================================================");
-	lines.push('// Run this script in After Effects: File > Scripts > Run Script File...');
+	lines.push("// Run this script in After Effects: File > Scripts > Run Script File...");
 	lines.push("");
 	lines.push("(function() {");
 	lines.push('  app.beginUndoGroup("OpenCaptions CWI Import");');
@@ -101,10 +101,10 @@ export function exportAfterEffectsScript(doc: CWIDocument, options?: AEExportOpt
 
 	// Create or use existing comp
 	lines.push("  // Create composition");
-	lines.push(`  var comp = app.project.items.addComp(`);
-	lines.push(`    ${JSON.stringify("CWI - " + title)},`);
+	lines.push("  var comp = app.project.items.addComp(");
+	lines.push(`    ${JSON.stringify(`CWI - ${title}`)},`);
 	lines.push(`    ${compWidth}, ${compHeight},`);
-	lines.push(`    1,`); // pixel aspect ratio
+	lines.push("    1,"); // pixel aspect ratio
 	lines.push(`    ${duration + 1},`); // duration + 1s padding
 	lines.push(`    ${fps}`);
 	lines.push("  );");
@@ -133,11 +133,13 @@ export function exportAfterEffectsScript(doc: CWIDocument, options?: AEExportOpt
 		lines.push("");
 
 		// Set source text properties (font, size, weight)
-		const avgWeight = Math.round(event.words.reduce((sum, w) => sum + w.weight, 0) / event.words.length);
+		const avgWeight = Math.round(
+			event.words.reduce((sum, w) => sum + w.weight, 0) / event.words.length,
+		);
 		const avgSize = event.words.reduce((sum, w) => sum + w.size, 0) / event.words.length;
 		const fontSize = Math.round(baseFontSize * avgSize);
 
-		lines.push(`  // Text properties`);
+		lines.push("  // Text properties");
 		lines.push(`  var textProp${i} = layer${i}.property("Source Text");`);
 		lines.push(`  var textDoc${i} = textProp${i}.value;`);
 		lines.push(`  textDoc${i}.resetCharStyle();`);
@@ -150,13 +152,15 @@ export function exportAfterEffectsScript(doc: CWIDocument, options?: AEExportOpt
 		lines.push("");
 
 		// Position: centered at bottom
-		lines.push(`  // Position: centered bottom`);
-		lines.push(`  layer${i}.property("Position").setValue([${compWidth / 2}, ${compHeight - 100}]);`);
+		lines.push("  // Position: centered bottom");
+		lines.push(
+			`  layer${i}.property("Position").setValue([${compWidth / 2}, ${compHeight - 100}]);`,
+		);
 		lines.push("");
 
 		// Opacity keyframes: fade in at start, hold during, fade out at end
 		const fadeTime = 0.15; // 150ms fade
-		lines.push(`  // Opacity keyframes`);
+		lines.push("  // Opacity keyframes");
 		lines.push(`  var opacity${i} = layer${i}.property("Opacity");`);
 		lines.push(`  opacity${i}.setValueAtTime(${Math.max(0, event.start - fadeTime)}, 0);`);
 		lines.push(`  opacity${i}.setValueAtTime(${event.start}, 100);`);
@@ -166,12 +170,14 @@ export function exportAfterEffectsScript(doc: CWIDocument, options?: AEExportOpt
 
 		// Text color keyframes: white -> speaker color over 600ms with ease
 		// Applied as a Fill Effect since AE text color isn't directly keyframable per-character easily
-		lines.push(`  // Color transition: white -> speaker color`);
+		lines.push("  // Color transition: white -> speaker color");
 		lines.push(`  var fill${i} = layer${i}.Effects.addProperty("ADBE Fill");`);
 		lines.push(`  fill${i}.property("ADBE Fill-0002").setValue(true);`); // All Masks
 		lines.push(`  var fillColor${i} = fill${i}.property("ADBE Fill-0007");`);
 		lines.push(`  fillColor${i}.setValueAtTime(${event.start}, [1, 1, 1, 1]);`); // white
-		lines.push(`  fillColor${i}.setValueAtTime(${event.start + animDurationSec}, [${(speakerColor.r / 255).toFixed(4)}, ${(speakerColor.g / 255).toFixed(4)}, ${(speakerColor.b / 255).toFixed(4)}, 1]);`);
+		lines.push(
+			`  fillColor${i}.setValueAtTime(${event.start + animDurationSec}, [${(speakerColor.r / 255).toFixed(4)}, ${(speakerColor.g / 255).toFixed(4)}, ${(speakerColor.b / 255).toFixed(4)}, 1]);`,
+		);
 		// Apply ease to color keyframes
 		lines.push(`  fillColor${i}.setTemporalEaseAtKey(1, [easeIn], [easeOut]);`);
 		lines.push(`  fillColor${i}.setTemporalEaseAtKey(2, [easeIn], [easeOut]);`);
@@ -179,14 +185,14 @@ export function exportAfterEffectsScript(doc: CWIDocument, options?: AEExportOpt
 
 		// Font weight via expression (Roboto Flex variable font axis)
 		lines.push(`  // Font weight (Roboto Flex wght axis): ${avgWeight}`);
-		lines.push(`  // Note: Variable font axes require AE 2024+ and are set via text animator.`);
-		lines.push(`  // The weight value is encoded as a comment for manual setup if needed.`);
+		lines.push("  // Note: Variable font axes require AE 2024+ and are set via text animator.");
+		lines.push("  // The weight value is encoded as a comment for manual setup if needed.");
 		lines.push("");
 
 		// Emphasis bounce: 15% size increase over 600ms for emphasis words
 		const hasEmphasis = event.words.some((w) => w.emphasis);
 		if (hasEmphasis) {
-			lines.push(`  // Emphasis bounce (15% size increase)`);
+			lines.push("  // Emphasis bounce (15% size increase)");
 			lines.push(`  var scale${i} = layer${i}.property("Scale");`);
 			for (const word of event.words) {
 				if (!word.emphasis) continue;
@@ -195,23 +201,29 @@ export function exportAfterEffectsScript(doc: CWIDocument, options?: AEExportOpt
 				const bounceEnd = word.start + animDurationSec;
 				lines.push(`  // Emphasis: "${escapeJS(word.text)}" at ${word.start.toFixed(3)}s`);
 				lines.push(`  scale${i}.setValueAtTime(${bounceStart}, [100, 100, 100]);`);
-				lines.push(`  scale${i}.setValueAtTime(${bouncePeak}, [${100 + CWI_DEFAULTS.EMPHASIS_BOUNCE_PERCENT}, ${100 + CWI_DEFAULTS.EMPHASIS_BOUNCE_PERCENT}, 100]);`);
+				lines.push(
+					`  scale${i}.setValueAtTime(${bouncePeak}, [${100 + CWI_DEFAULTS.EMPHASIS_BOUNCE_PERCENT}, ${100 + CWI_DEFAULTS.EMPHASIS_BOUNCE_PERCENT}, 100]);`,
+				);
 				lines.push(`  scale${i}.setValueAtTime(${bounceEnd}, [100, 100, 100]);`);
 			}
 			lines.push("");
 		}
 
 		// Per-word timing comment block for manual text animator setup
-		lines.push(`  // Word timing reference for text animators:`);
+		lines.push("  // Word timing reference for text animators:");
 		for (const word of event.words) {
-			lines.push(`  //   "${escapeJS(word.text)}": ${word.start.toFixed(3)}s - ${word.end.toFixed(3)}s  weight=${word.weight}  size=${word.size.toFixed(2)}  emphasis=${word.emphasis}`);
+			lines.push(
+				`  //   "${escapeJS(word.text)}": ${word.start.toFixed(3)}s - ${word.end.toFixed(3)}s  weight=${word.weight}  size=${word.size.toFixed(2)}  emphasis=${word.emphasis}`,
+			);
 		}
 		lines.push("");
 	}
 
 	// Close script
-	lines.push('  app.endUndoGroup();');
-	lines.push(`  alert("OpenCaptions: Created ${doc.captions.length} caption layers in comp '" + comp.name + "'");`);
+	lines.push("  app.endUndoGroup();");
+	lines.push(
+		`  alert("OpenCaptions: Created ${doc.captions.length} caption layers in comp '" + comp.name + "'");`,
+	);
 	lines.push("})();");
 
 	return lines.join("\n");
@@ -251,7 +263,7 @@ export function exportPremiereXML(doc: CWIDocument, options?: PremiereXMLOptions
 
 	// XML header
 	lines.push('<?xml version="1.0" encoding="UTF-8"?>');
-	lines.push('<!DOCTYPE xmeml>');
+	lines.push("<!DOCTYPE xmeml>");
 	lines.push('<xmeml version="5">');
 	lines.push("  <sequence>");
 	lines.push(`    <name>${escapeXML(title)}</name>`);
@@ -288,7 +300,9 @@ export function exportPremiereXML(doc: CWIDocument, options?: PremiereXMLOptions
 		const clipId = `caption-${i + 1}`;
 
 		lines.push(`          <clipitem id="${clipId}">`);
-		lines.push(`            <name>${escapeXML(speaker.name)}: ${escapeXML(truncate(fullText, 60))}</name>`);
+		lines.push(
+			`            <name>${escapeXML(speaker.name)}: ${escapeXML(truncate(fullText, 60))}</name>`,
+		);
 		lines.push(`            <duration>${clipDurationFrames}</duration>`);
 		lines.push("            <rate>");
 		lines.push(`              <timebase>${fps}</timebase>`);
@@ -296,7 +310,7 @@ export function exportPremiereXML(doc: CWIDocument, options?: PremiereXMLOptions
 		lines.push("            </rate>");
 		lines.push(`            <start>${startFrame}</start>`);
 		lines.push(`            <end>${endFrame}</end>`);
-		lines.push(`            <in>0</in>`);
+		lines.push("            <in>0</in>");
 		lines.push(`            <out>${clipDurationFrames}</out>`);
 
 		// File reference (text generator)
@@ -338,25 +352,27 @@ export function exportPremiereXML(doc: CWIDocument, options?: PremiereXMLOptions
 		lines.push("                <parameter>");
 		lines.push("                  <parameterid>fontcolor</parameterid>");
 		lines.push("                  <name>Font Color</name>");
-		lines.push(`                  <value>`);
+		lines.push("                  <value>");
 		lines.push(`                    <red>${speakerColor.r}</red>`);
 		lines.push(`                    <green>${speakerColor.g}</green>`);
 		lines.push(`                    <blue>${speakerColor.b}</blue>`);
-		lines.push(`                    <alpha>255</alpha>`);
-		lines.push(`                  </value>`);
+		lines.push("                    <alpha>255</alpha>");
+		lines.push("                  </value>");
 		lines.push("                </parameter>");
 		lines.push("              </effect>");
 		lines.push("            </filter>");
 
 		// Speaker color as clip label
-		lines.push(`            <labels>`);
+		lines.push("            <labels>");
 		lines.push(`              <label>${escapeXML(speaker.color)}</label>`);
 		lines.push("            </labels>");
 
 		// Marker with speaker info and word details
 		lines.push("            <marker>");
 		lines.push(`              <name>${escapeXML(speaker.name)}</name>`);
-		lines.push(`              <comment>Speaker: ${escapeXML(speaker.name)} | Color: ${escapeXML(speaker.color)} | Words: ${event.words.length}</comment>`);
+		lines.push(
+			`              <comment>Speaker: ${escapeXML(speaker.name)} | Color: ${escapeXML(speaker.color)} | Words: ${event.words.length}</comment>`,
+		);
 		lines.push("              <in>0</in>");
 		lines.push(`              <out>${clipDurationFrames}</out>`);
 		lines.push("            </marker>");
@@ -368,7 +384,9 @@ export function exportPremiereXML(doc: CWIDocument, options?: PremiereXMLOptions
 			const wordEndFrame = secondsToFrames(word.end - event.start, fps);
 			lines.push("            <marker>");
 			lines.push(`              <name>${escapeXML(word.text)}</name>`);
-			lines.push(`              <comment>weight=${word.weight} size=${word.size.toFixed(2)} emphasis=${word.emphasis}</comment>`);
+			lines.push(
+				`              <comment>weight=${word.weight} size=${word.size.toFixed(2)} emphasis=${word.emphasis}</comment>`,
+			);
 			lines.push(`              <in>${wordStartFrame}</in>`);
 			lines.push(`              <out>${wordEndFrame}</out>`);
 			lines.push("            </marker>");

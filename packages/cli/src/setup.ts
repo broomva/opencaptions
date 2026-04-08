@@ -5,8 +5,8 @@
  * doctor: verifies all components are operational
  */
 
-import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -151,9 +151,7 @@ export async function cmdSetup(): Promise<void> {
 
 	const pythonResult = await runCommand("python3", ["--version"]);
 	if (pythonResult.code !== 0) {
-		printError(
-			"Python 3 is not installed. Install Python 3.11+ from https://python.org",
-		);
+		printError("Python 3 is not installed. Install Python 3.11+ from https://python.org");
 		process.exit(2);
 	}
 
@@ -166,9 +164,7 @@ export async function cmdSetup(): Promise<void> {
 
 	const [major, minor] = version;
 	if (major < 3 || (major === 3 && minor < 11)) {
-		printError(
-			`Python 3.11+ required, found ${major}.${minor}. Upgrade from https://python.org`,
-		);
+		printError(`Python 3.11+ required, found ${major}.${minor}. Upgrade from https://python.org`);
 		process.exit(2);
 	}
 
@@ -218,13 +214,14 @@ export async function cmdSetup(): Promise<void> {
 	print(`${CYAN}[4/6]${RESET} Installing Python packages...\n`);
 
 	for (const pkg of PYTHON_PACKAGES) {
-		const importName = pkg === "openai-whisper"
-			? "whisper"
-			: pkg === "opencv-python-headless"
-				? "cv2"
-				: pkg === "pyannote.audio"
-					? "pyannote.audio"
-					: pkg;
+		const importName =
+			pkg === "openai-whisper"
+				? "whisper"
+				: pkg === "opencv-python-headless"
+					? "cv2"
+					: pkg === "pyannote.audio"
+						? "pyannote.audio"
+						: pkg;
 
 		const alreadyInstalled = await canImport(importName);
 		if (alreadyInstalled) {
@@ -233,16 +230,10 @@ export async function cmdSetup(): Promise<void> {
 		}
 
 		print(`  Installing ${BOLD}${pkg}${RESET}...`);
-		const code = await runCommandStreaming(VENV_PIP, [
-			"install",
-			pkg,
-			"--quiet",
-		]);
+		const code = await runCommandStreaming(VENV_PIP, ["install", pkg, "--quiet"]);
 		if (code !== 0) {
 			printError(`Failed to install ${pkg}`);
-			printInfo(
-				`Try manually: ${DIM}${VENV_PIP} install ${pkg}${RESET}`,
-			);
+			printInfo(`Try manually: ${DIM}${VENV_PIP} install ${pkg}${RESET}`);
 		} else {
 			printSuccess(`${pkg} installed`);
 		}
@@ -255,9 +246,7 @@ export async function cmdSetup(): Promise<void> {
 
 	const ollamaResult = await runCommand("ollama", ["--version"]);
 	if (ollamaResult.code !== 0) {
-		printWarn(
-			`Ollama not found — optional, used for local LLM intent extraction`,
-		);
+		printWarn("Ollama not found — optional, used for local LLM intent extraction");
 		printInfo(`Install from ${CYAN}https://ollama.com${RESET}`);
 	} else {
 		const ollamaVersion = (ollamaResult.stdout + ollamaResult.stderr).trim();
@@ -276,29 +265,19 @@ export async function cmdSetup(): Promise<void> {
 		if (existsSync(whisperCacheDir)) {
 			printSuccess("Whisper model cache directory exists");
 		} else {
-			printInfo(
-				"Whisper models will be downloaded on first use",
-			);
+			printInfo("Whisper models will be downloaded on first use");
 		}
-		printInfo(
-			`The ${BOLD}large-v3${RESET} model is recommended (~3 GB download)`,
-		);
-		printInfo(
-			`Models are cached at ${DIM}~/.cache/whisper/${RESET}`,
-		);
+		printInfo(`The ${BOLD}large-v3${RESET} model is recommended (~3 GB download)`);
+		printInfo(`Models are cached at ${DIM}~/.cache/whisper/${RESET}`);
 	} else {
-		printWarn(
-			"Whisper not yet installed — run setup again or install manually",
-		);
+		printWarn("Whisper not yet installed — run setup again or install manually");
 	}
 
 	// ------------------------------------------------------------------
 	// Summary
 	// ------------------------------------------------------------------
 	print(`\n${GREEN}${BOLD}Setup complete!${RESET}\n`);
-	print(
-		`Run ${BOLD}opencaptions doctor${RESET} to verify all components.\n`,
-	);
+	print(`Run ${BOLD}opencaptions doctor${RESET} to verify all components.\n`);
 }
 
 // ============================================================================
@@ -336,9 +315,7 @@ export async function cmdDoctor(): Promise<void> {
 			checks.push({
 				name: "Python 3.11+",
 				ok,
-				detail: ok
-					? `${major}.${minor}`
-					: `${major}.${minor} (need 3.11+)`,
+				detail: ok ? `${major}.${minor}` : `${major}.${minor} (need 3.11+)`,
 			});
 		}
 	}
@@ -351,9 +328,7 @@ export async function cmdDoctor(): Promise<void> {
 		checks.push({
 			name: "OpenCaptions venv",
 			ok,
-			detail: ok
-				? VENV_DIR
-				: `not found at ${VENV_DIR}`,
+			detail: ok ? VENV_DIR : `not found at ${VENV_DIR}`,
 		});
 	}
 
@@ -418,9 +393,7 @@ export async function cmdDoctor(): Promise<void> {
 	for (const check of checks) {
 		const icon = check.ok ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}`;
 		const optionalTag = check.optional && !check.ok ? ` ${DIM}(optional)${RESET}` : "";
-		print(
-			`  ${icon} ${BOLD}${check.name}${RESET} — ${check.detail}${optionalTag}`,
-		);
+		print(`  ${icon} ${BOLD}${check.name}${RESET} — ${check.detail}${optionalTag}`);
 	}
 
 	const requiredChecks = checks.filter((c) => !c.optional);
@@ -434,10 +407,11 @@ export async function cmdDoctor(): Promise<void> {
 
 	if (passedRequired === totalRequired) {
 		print(
-			`${GREEN}${BOLD}All ${passedRequired} required components ready.${RESET}` +
-				(passedOptional < allOptional.length
+			`${GREEN}${BOLD}All ${passedRequired} required components ready.${RESET}${
+				passedOptional < allOptional.length
 					? ` ${DIM}(${passedOptional}/${allOptional.length} optional)${RESET}`
-					: ""),
+					: ""
+			}`,
 		);
 	} else {
 		print(

@@ -279,7 +279,7 @@ export class AudioVisionExtractor implements IntentExtractorBackend {
 			const shouldSplit =
 				!current ||
 				current.speaker_id !== word.speaker_id ||
-				(word.start - current.end > PAUSE_THRESHOLD);
+				word.start - current.end > PAUSE_THRESHOLD;
 
 			if (shouldSplit) {
 				if (current) utterances.push(current);
@@ -290,7 +290,7 @@ export class AudioVisionExtractor implements IntentExtractorBackend {
 					end: word.end,
 					words: [word],
 				};
-			} else {
+			} else if (current) {
 				current.end = word.end;
 				current.words.push(word);
 			}

@@ -18,11 +18,16 @@ import { resolve } from "node:path";
 import { createV1Backends } from "@opencaptions/backend-av";
 import { Pipeline } from "@opencaptions/pipeline";
 import { rulesMapper } from "@opencaptions/pipeline";
-import { TerminalRenderer, exportWebVTT, exportAfterEffectsScript, exportPremiereXML } from "@opencaptions/renderer";
+import {
+	TerminalRenderer,
+	exportAfterEffectsScript,
+	exportPremiereXML,
+	exportWebVTT,
+} from "@opencaptions/renderer";
 import { validate } from "@opencaptions/spec";
 import { TracingCollector } from "@opencaptions/tracing";
 import type { CWIDocument } from "@opencaptions/types";
-import { cmdSetup, cmdDoctor } from "./setup.js";
+import { cmdDoctor, cmdSetup } from "./setup.js";
 
 // ============================================================================
 // CLI Helpers

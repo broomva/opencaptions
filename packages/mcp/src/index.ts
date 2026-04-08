@@ -15,21 +15,21 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
+import { Pipeline } from "@opencaptions/pipeline";
+import { TerminalRenderer, exportWebVTT } from "@opencaptions/renderer";
+import { validate } from "@opencaptions/spec";
 import type {
 	CWIDocument,
+	DiarizationBackend,
 	DiarizedTranscript,
 	DiarizedWord,
+	IntentExtractorBackend,
 	IntentFrame,
 	RawTranscript,
 	TranscriptBackend,
-	DiarizationBackend,
-	IntentExtractorBackend,
 	VideoInput,
 } from "@opencaptions/types";
 import { SPEAKER_COLORS } from "@opencaptions/types";
-import { Pipeline } from "@opencaptions/pipeline";
-import { validate } from "@opencaptions/spec";
-import { TerminalRenderer, exportWebVTT } from "@opencaptions/renderer";
 
 // ============================================================================
 // Logging — stderr only (stdout is the MCP transport)
@@ -159,12 +159,20 @@ function parseCWIDocument(cwi_json: string): CWIDocument {
 
 function formatValidationSummary(report: ReturnType<typeof validate>): string {
 	const lines: string[] = [];
-	lines.push(`Validation ${report.passed ? "PASSED" : "FAILED"} — Overall Score: ${report.overall_score}/100`);
+	lines.push(
+		`Validation ${report.passed ? "PASSED" : "FAILED"} — Overall Score: ${report.overall_score}/100`,
+	);
 	lines.push("");
 	lines.push("Pillar Scores:");
-	lines.push(`  Attribution:     ${report.pillars.attribution.score}/100 ${report.pillars.attribution.passed ? "[PASS]" : "[FAIL]"}`);
-	lines.push(`  Synchronization: ${report.pillars.synchronization.score}/100 ${report.pillars.synchronization.passed ? "[PASS]" : "[FAIL]"}`);
-	lines.push(`  Intonation:      ${report.pillars.intonation.score}/100 ${report.pillars.intonation.passed ? "[PASS]" : "[FAIL]"}`);
+	lines.push(
+		`  Attribution:     ${report.pillars.attribution.score}/100 ${report.pillars.attribution.passed ? "[PASS]" : "[FAIL]"}`,
+	);
+	lines.push(
+		`  Synchronization: ${report.pillars.synchronization.score}/100 ${report.pillars.synchronization.passed ? "[PASS]" : "[FAIL]"}`,
+	);
+	lines.push(
+		`  Intonation:      ${report.pillars.intonation.score}/100 ${report.pillars.intonation.passed ? "[PASS]" : "[FAIL]"}`,
+	);
 	lines.push("");
 	lines.push("Stats:");
 	lines.push(`  Duration:  ${report.stats.duration_seconds}s`);
@@ -184,7 +192,8 @@ function formatValidationSummary(report: ReturnType<typeof validate>): string {
 		lines.push("");
 		lines.push(`Findings (${allFindings.length}):`);
 		for (const f of allFindings) {
-			const icon = f.severity === "error" ? "[ERROR]" : f.severity === "warning" ? "[WARN]" : "[INFO]";
+			const icon =
+				f.severity === "error" ? "[ERROR]" : f.severity === "warning" ? "[WARN]" : "[INFO]";
 			lines.push(`  ${icon} ${f.rule_id}: ${f.message}`);
 			if (f.suggestion) {
 				lines.push(`         -> ${f.suggestion}`);
@@ -302,9 +311,7 @@ server.tool(
 		"Synchronization (timestamps, overlaps, animation), and Intonation " +
 		"(weight range, size range, variation). Returns pillar scores and findings.",
 	{
-		cwi_json: z
-			.string()
-			.describe("The CWI document as a JSON string"),
+		cwi_json: z.string().describe("The CWI document as a JSON string"),
 	},
 	async ({ cwi_json }) => {
 		try {
@@ -350,9 +357,7 @@ server.tool(
 		"If no time is provided, shows a full document summary with cast, " +
 		"timing, and all caption events.",
 	{
-		cwi_json: z
-			.string()
-			.describe("The CWI document as a JSON string"),
+		cwi_json: z.string().describe("The CWI document as a JSON string"),
 		time: z
 			.number()
 			.optional()
@@ -407,12 +412,8 @@ server.tool(
 		"subtitle format supported by all major video players and streaming " +
 		"platforms. Includes speaker voice tags per the WebVTT spec.",
 	{
-		cwi_json: z
-			.string()
-			.describe("The CWI document as a JSON string"),
-		format: z
-			.enum(["webvtt"])
-			.describe('Export format (currently only "webvtt" is supported)'),
+		cwi_json: z.string().describe("The CWI document as a JSON string"),
+		format: z.enum(["webvtt"]).describe('Export format (currently only "webvtt" is supported)'),
 	},
 	async ({ cwi_json, format }) => {
 		try {

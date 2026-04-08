@@ -6,14 +6,20 @@ OpenCaptions is an open-source video understanding pipeline that generates **Cap
 
 OpenCaptions is the first programmatic toolchain for CWI. It extracts cinematic intent from video — pitch, volume, emotion, emphasis, sarcasm, pacing — then renders that felt experience as CWI visual language.
 
+## Repos
+
+- **Public (OSS)**: https://github.com/broomva/opencaptions → `~/broomva/apps/opencaptions/`
+- **Private (platform)**: https://github.com/broomva/opencaptions-platform → `~/broomva/apps/opencaptions-platform/`
+- **npm org**: `@opencaptions` (broomva = owner)
+
 ## Architecture
 
 ```
 VideoInput
-  → TranscriptBackend (V1: whisper.cpp)
-  → DiarizationBackend (V1: pyannote-audio)
-  → IntentExtractorBackend (V1: audio+vision, V2: V-JEPA2)
-  → IntentMapper (V1: RulesMapper, V2: LearnedMapper)
+  → TranscriptBackend (V1: faster-whisper)
+  → DiarizationBackend (V1: pyannote-audio, fallback: energy-based)
+  → IntentExtractorBackend (V1: parselmouth + FER, V2: V-JEPA2, V3: TRIBE v2)
+  → IntentMapper (V1: RulesMapper, V2: LearnedMapper, V3: NeuralMapper)
   → CWIValidator → ValidationReport
   → TracingCollector (opt-in feedback flywheel)
 ```
@@ -22,106 +28,89 @@ VideoInput
 
 ```
 packages/
-├── types/       — Zero-dep TypeScript types + constants (foundation)
-├── spec/        — 12-rule CWI validation engine (ATT/SYN/INT/FCC)
-├── layout/      — Word geometry engine (Pretext-compatible)
-├── pipeline/    — Orchestrator + RulesMapper + backend interfaces
-├── backend-av/  — V1 extractor (Whisper + pyannote + parselmouth)
-├── backend-jepa/— V2 extractor stub (Phase 3)
-├── renderer/    — Terminal renderer (ANSI) + WebVTT exporter
-├── mcp/         — MCP server stub (Phase 2)
-├── tracing/     — Telemetry + correction collection
-└── cli/         — Bun CLI: generate, validate, preview, export, telemetry
+├── types/       — Zero-dep TypeScript types + constants (506 LOC)
+├── spec/        — 12-rule CWI validation engine (468 LOC)
+├── layout/      — Word geometry engine, animation helpers (218 LOC)
+├── pipeline/    — Orchestrator + RulesMapper + voice profiling (344 LOC)
+├── backend-av/  — V1 extractor + 4 Python scripts (374 LOC TS + 822 LOC Python)
+├── backend-jepa/— V2 extractor stub
+├── renderer/    — Terminal ANSI + WebVTT + AE/Premiere export (645 LOC)
+├── mcp/         — MCP server with 4 tools (478 LOC)
+├── tracing/     — Telemetry + correction collection (346 LOC)
+└── cli/         — Bun CLI: 8 commands (794 LOC)
 ```
 
-Dependency graph (no cycles):
-```
-types ← spec, layout, pipeline, tracing (Layer 2 — all independent)
-pipeline ← backend-av, backend-jepa, mcp (Layer 3)
-layout ← renderer (Layer 3)
-pipeline + backend-av + renderer + tracing + spec ← cli (Layer 4)
+## Commands
+
+```bash
+bun install                                      # Install deps
+turbo build                                      # Build all packages
+bun run packages/cli/src/index.ts --help         # CLI help
+bun run packages/cli/src/index.ts generate <video>  # Generate CWI captions
+bun run packages/cli/src/index.ts validate <cwi.json>
+bun run packages/cli/src/index.ts preview <cwi.json>
+bun run packages/cli/src/index.ts export <cwi.json> --format webvtt|ae-json|premiere-xml
+bun run packages/cli/src/index.ts doctor         # Check dependencies
+bun run packages/cli/src/index.ts setup          # Install Python deps
+bun run packages/cli/src/index.ts telemetry show|on|off
+bun test                                         # Run all tests
 ```
 
 ## Conventions
 
-- **Package manager**: Bun (1.3+)
+- **Package manager**: Bun
 - **Build**: Turborepo (`turbo build`)
 - **Linter**: Biome (never ESLint/Prettier)
-- **TypeScript**: Strict mode, ES2022 target, ESNext modules
-- **Formatting**: Tabs, double quotes, semicolons, 100 char line width
+- **TypeScript**: Strict mode, ES2022 target
 - **Testing**: `bun test`
 - **License**: MIT
 
+## Python Dependencies (Layered Degradation)
+
+Pipeline works with zero Python deps. Each adds a layer:
+
+| Package | What it enables | Install |
+|---------|----------------|---------|
+| faster-whisper | Word-level transcription | `pip install faster-whisper` |
+| praat-parselmouth | Real pitch/volume per utterance | `pip install praat-parselmouth` |
+| librosa | Speech rate, energy-based diarization fallback | `pip install librosa` |
+| pyannote-audio | Multi-speaker detection + colors | `pip install pyannote-audio` + HF token |
+| fer + opencv | Facial emotion detection | `pip install fer opencv-python-headless` |
+| ollama | Semantic emphasis/sarcasm detection | Install from ollama.com |
+
 ## Key Design Decisions
 
-1. **Pluggable backends**: All extraction backends implement typed interfaces. V1 uses audio+vision tools via subprocess. V2 will swap in V-JEPA2 world model embeddings. Same types throughout.
-2. **RulesMapper is V1**: Pure math (lerp functions). Deterministic, auditable. LearnedMapper V2 will be trained on correction data from the telemetry flywheel.
-3. **Tracing is the moat**: The anonymous correction data (MapperCorrection) accumulates into training data for the learned mapper. The instrument improves with use.
-4. **Lighthouse model**: We don't certify — we measure. The validation report URL is the shareable artifact studios cite.
-5. **Staircase pricing**: Free CLI (unlimited local) → Starter $9 → Pro $29 → Studio $99 → Enterprise. Overage billing at each tier makes upgrades self-evident.
+1. **Pluggable backends**: All backends implement typed interfaces. V1→audio+vision, V2→V-JEPA2, V3→TRIBE v2.
+2. **RulesMapper V1**: pitch→weight (lerp 200-700), volume→size (lerp 0.8-1.35), emphasis from semantic+volume.
+3. **Pause-based utterance splitting**: Gaps > 400ms create natural breaks even without diarization.
+4. **Layered degradation**: Pipeline works with nothing installed, improves with each dep added.
+5. **Tracing is the moat**: Correction data → learned mapper training data.
+6. **Lighthouse model**: We measure, not certify. Validation report URL is the artifact.
 
-## Linear Tickets (BRO-520 through BRO-540)
+## Linear Tickets (BRO-520 through BRO-546)
 
-### Phase 1 — Implemented (BRO-520 through BRO-528, BRO-538)
-- BRO-520: Project scaffolding ✅
-- BRO-521: @opencaptions/types ✅
-- BRO-522: @opencaptions/spec ✅
-- BRO-523: @opencaptions/layout ✅
-- BRO-524: @opencaptions/pipeline ✅
-- BRO-525: @opencaptions/backend-av ✅
-- BRO-526: @opencaptions/renderer ✅
-- BRO-527: @opencaptions/tracing ✅
-- BRO-528: @opencaptions/cli ✅
-- BRO-538: CI/CD (GitHub Actions workflow) ✅
+### Done (19)
+BRO-520–529, BRO-534–538, BRO-540–541, BRO-544, BRO-546
 
-### Phase 1 — Remaining
-- BRO-529: Sample CWI documents + test fixtures
-- BRO-540: Python dependency installer + setup wizard
-- BRO-537: Landing page + docs site
-
-### Phase 2 — API + Dashboard
-- BRO-530: Hosted API + credit billing
-- BRO-531: Web dashboard
-- BRO-534: MCP server for agent integration
-- BRO-535: AE/Premiere export plugins
-- BRO-536: Telemetry ingestion backend
-
-### Phase 3 — World Model + Learned Mapper
+### Remaining (8)
+- BRO-530: Hosted API + billing (platform repo)
+- BRO-531: Web dashboard (platform repo)
 - BRO-532: V-JEPA2 backend
 - BRO-533: LearnedMapper V2
-
-### Phase 3.5 — TRIBE v2 Neural Intent
-TRIBE v2 (Meta FAIR) predicts fMRI brain activations from video. Instead of acoustic features → CWI styling,
-map predicted neural responses → CWI styling. Captions represent what the viewer's brain WOULD FEEL.
-
-- BRO-541: TRIBE v2 integration POC (extract ROI activations from 6 brain regions)
-- BRO-544: Add NeuralPrediction type to IntentFrame schema
-- BRO-542: @opencaptions/backend-tribe (TRIBE v2 subprocess backend)
-- BRO-543: NeuralMapper V3 (amygdala→size, right_temporal→weight, broca→emphasis)
-- BRO-545: Deaf reviewer validation study (V1 vs V3 quality comparison)
-
-Resources: github.com/facebookresearch/tribev2, huggingface.co/facebook/tribev2, CC BY-NC
-
-### Phase 4 — Ecosystem
 - BRO-539: Community outreach
+- BRO-542: backend-tribe (TRIBE v2)
+- BRO-543: NeuralMapper V3
+- BRO-545: Deaf reviewer study
 
 ## npm Publishing
 
-- **Scope**: `@opencaptions/*`
-- **npm org**: `opencaptions` (created, broomva = owner)
-- **Not yet published** — run `./scripts/publish-all.sh` (requires passkey auth per package via `bun publish`)
-- Publish order must respect dependency chain: types → spec/layout/pipeline/tracing → backend-av/renderer → cli
-
-## Design Spec
-
-Full design document at: `~/broomva/docs/superpowers/specs/2026-04-06-opencaptions-design.md`
+Run `./scripts/publish-all.sh` (passkey auth per package via `bun publish`).
+Publish order: types → spec/layout/pipeline/tracing → backend-av/renderer/mcp → cli
 
 ## CWI Animation Spec (from FCB Chicago)
 
-- Animation curve: ease
-- Animation delay: 100ms
-- Animation duration: 600ms
+- Ease curve, 100ms delay, 600ms duration
 - Word transition: white → speaker color
 - Emphasis: 15% size bounce upward
-- Font: Roboto Flex (variable font, weight = pitch, size = volume)
-- Speaker colors: 12-color WCAG AA palette defined in types/src/index.ts
+- Font: Roboto Flex (variable, weight = pitch, size = volume)
+- 12-color WCAG AA palette in types/src/index.ts
