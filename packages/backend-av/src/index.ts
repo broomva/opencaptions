@@ -80,10 +80,17 @@ function parseJsonOutput<T>(result: SubprocessResult, context: string): T {
 	if (result.exitCode !== 0) {
 		throw new Error(`${context} failed (exit ${result.exitCode}): ${result.stderr}`);
 	}
+	// Some Python libraries (notably faster-whisper / ctranslate2) emit
+	// C-level prints to stdout that bypass Python's sys.stdout and resist
+	// redirect_stdout(). Extract the JSON payload by slicing from the first
+	// '{' or '[' character to the last matching bracket.
+	const stdout = result.stdout;
+	const firstBrace = stdout.search(/[{[]/);
+	const payload = firstBrace >= 0 ? stdout.slice(firstBrace) : stdout;
 	try {
-		return JSON.parse(result.stdout) as T;
+		return JSON.parse(payload) as T;
 	} catch {
-		throw new Error(`${context} returned invalid JSON: ${result.stdout.slice(0, 200)}`);
+		throw new Error(`${context} returned invalid JSON: ${stdout.slice(0, 200)}`);
 	}
 }
 

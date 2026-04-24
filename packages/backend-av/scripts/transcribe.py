@@ -92,9 +92,17 @@ def transcribe_with_faster_whisper(audio_path: str, model_size: str) -> dict:
         return None
 
     print(f"Using faster-whisper model: {model_size}", file=sys.stderr)
-    model = WhisperModel(model_size, device="auto", compute_type="auto")
-
-    segments, info = model.transcribe(audio_path, word_timestamps=True)
+    import contextlib
+    # faster-whisper prints "Detected language: X" to stdout internally,
+    # which pollutes our JSON output. Redirect all stdout emitted during
+    # model load + transcribe to stderr so only our json.dumps(result)
+    # reaches stdout.
+    with contextlib.redirect_stdout(sys.stderr):
+        model = WhisperModel(model_size, device="auto", compute_type="auto")
+        segments, info = model.transcribe(audio_path, word_timestamps=True)
+        # Materialise the segments generator inside the redirect so any
+        # stdout emitted lazily during iteration is also captured.
+        segments = list(segments)
 
     words = []
     for segment in segments:
