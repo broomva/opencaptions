@@ -8,25 +8,38 @@ export function parseJsonOutput<T>(result: SubprocessResult, context: string): T
 	if (result.exitCode !== 0) {
 		throw new Error(`${context} failed (exit ${result.exitCode}): ${result.stderr}`);
 	}
-	// Some Python libraries (notably faster-whisper / ctranslate2) emit
-	// C-level prints to stdout that bypass Python's sys.stdout and resist
-	// redirect_stdout(). Parse the whole stream first; if that fails, try each
-	// line that starts with '{' or '[' and parse from there to the end. A
-	// polluting line may itself contain brackets (e.g. "[ctranslate2] [warning]"),
-	// so the first bracket in the stream is not necessarily the payload.
+	// The Python scripts write exactly one single-line JSON payload, but native
+	// code can still reach stdout: a line printed BEFORE the payload, or libc
+	// flushing its buffer at exit AFTER it. Either side may itself look like
+	// JSON ("[1]", "{}"). So: parse the whole stream; failing that, take the
+	// LONGEST span that parses, where a span starts at a line beginning with
+	// '{' or '[' (or at the first bracket anywhere, for a payload glued to a
+	// polluting prefix) and ends at a line end. A short JSON-looking pollution
+	// line then cannot beat the payload, on either side.
 	const stdout = result.stdout;
-	const candidates = [0];
-	for (const m of stdout.matchAll(/^[ \t]*[{[]/gm)) candidates.push(m.index ?? 0);
-	// Last resort: the first bracket anywhere, for a payload glued to a
-	// polluting line with no newline in between.
+	try {
+		return JSON.parse(stdout) as T;
+	} catch {
+		// polluted; search for the payload span
+	}
+	const starts = new Set<number>();
+	for (const m of stdout.matchAll(/^[ \t]*[{[]/gm)) starts.add(m.index ?? 0);
 	const firstBracket = stdout.search(/[{[]/);
-	if (firstBracket >= 0) candidates.push(firstBracket);
-	for (const start of candidates) {
-		try {
-			return JSON.parse(stdout.slice(start)) as T;
-		} catch {
-			// not the payload; try the next line
+	if (firstBracket >= 0) starts.add(firstBracket);
+	const ends = [...stdout.matchAll(/\n/g)].map((m) => m.index ?? 0);
+	ends.push(stdout.length);
+	let best: { len: number; value: T } | undefined;
+	for (const start of starts) {
+		for (const end of ends) {
+			const len = end - start;
+			if (len <= 0 || (best && len <= best.len)) continue;
+			try {
+				best = { len, value: JSON.parse(stdout.slice(start, end)) as T };
+			} catch {
+				// not a complete JSON value
+			}
 		}
 	}
+	if (best) return best.value;
 	throw new Error(`${context} returned invalid JSON: ${stdout.slice(0, 200)}`);
 }

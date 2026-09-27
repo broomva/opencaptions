@@ -28,6 +28,25 @@ describe("parseJsonOutput", () => {
 		).toHaveLength(1);
 	});
 
+	test("pollution AFTER the payload (libc flushing at exit) is ignored", () => {
+		const r = parseJsonOutput<{ words: unknown[] }>(
+			ok(`${PAYLOAD}\nDetected language: English\n`),
+			"t",
+		);
+		expect(r.words).toHaveLength(1);
+	});
+
+	test("a short JSON-looking line on either side cannot beat the payload", () => {
+		for (const stdout of [
+			`${PAYLOAD}\n{}`,
+			`${PAYLOAD}\n[1]`,
+			`[1]\n${PAYLOAD}`,
+			`{}\n${PAYLOAD}\n[2]`,
+		]) {
+			expect(parseJsonOutput<{ words: unknown[] }>(ok(stdout), "t").words).toHaveLength(1);
+		}
+	});
+
 	test("a top-level array payload parses", () => {
 		expect(parseJsonOutput<number[]>(ok("noise\n[1,2,3]"), "t")).toEqual([1, 2, 3]);
 	});
