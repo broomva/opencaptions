@@ -53,7 +53,10 @@ def transcribe_with_whisper(audio_path: str, model_size: str) -> dict:
     result = model.transcribe(
         audio_path,
         word_timestamps=True,
-        verbose=False,
+        # verbose=False still prints "Detected language: X" (openai-whisper
+        # transcribe.py: the print is guarded by `verbose is not None`);
+        # None silences it.
+        verbose=None,
     )
 
     # Extract word-level data
@@ -93,8 +96,8 @@ def transcribe_with_faster_whisper(audio_path: str, model_size: str) -> dict:
 
     print(f"Using faster-whisper model: {model_size}", file=sys.stderr)
     model = WhisperModel(model_size, device="auto", compute_type="auto")
-
     segments, info = model.transcribe(audio_path, word_timestamps=True)
+    segments = list(segments)  # decoding is lazy; run it now, while fd 1 is stderr
 
     words = []
     for segment in segments:
@@ -116,7 +119,24 @@ def transcribe_with_faster_whisper(audio_path: str, model_size: str) -> dict:
     }
 
 
+def claim_stdout():
+    """Point fd 1 at stderr for the rest of the process; return the real stdout.
+
+    Native code (ctranslate2, torch) writes to fd 1 directly, and libc flushes
+    its stdout buffer at process exit -- AFTER our payload. Python's
+    contextlib.redirect_stdout swaps only the sys.stdout object, so it catches
+    neither. Moving the file descriptor catches both, and fd 1 is never pointed
+    back, so a flush at exit lands on stderr too. The JSON payload is the only
+    thing ever written to the returned file.
+    """
+    sys.stdout.flush()
+    real_stdout = os.fdopen(os.dup(1), "w")
+    os.dup2(2, 1)
+    return real_stdout
+
+
 def main():
+    out = claim_stdout()
     parser = argparse.ArgumentParser(description="Transcribe video with Whisper")
     parser.add_argument("--input", required=True, help="Path to video/audio file")
     parser.add_argument("--model", default="base", help="Whisper model size (tiny, base, small, medium, large-v3)")
@@ -140,7 +160,8 @@ def main():
         if result is None:
             result = transcribe_with_whisper(audio_path, args.model)
 
-        print(json.dumps(result))
+        out.write(json.dumps(result) + "\n")
+        out.flush()
 
     finally:
         # Clean up temp audio file

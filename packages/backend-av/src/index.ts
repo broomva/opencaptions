@@ -35,11 +35,7 @@ import type {
 // Subprocess helper
 // ============================================================================
 
-type SubprocessResult = {
-	stdout: string;
-	stderr: string;
-	exitCode: number;
-};
+import { type SubprocessResult, parseJsonOutput } from "./parse-json-output.js";
 
 async function runPython(
 	scriptPath: string,
@@ -74,17 +70,6 @@ async function runPython(
 		});
 		proc.on("error", reject);
 	});
-}
-
-function parseJsonOutput<T>(result: SubprocessResult, context: string): T {
-	if (result.exitCode !== 0) {
-		throw new Error(`${context} failed (exit ${result.exitCode}): ${result.stderr}`);
-	}
-	try {
-		return JSON.parse(result.stdout) as T;
-	} catch {
-		throw new Error(`${context} returned invalid JSON: ${result.stdout.slice(0, 200)}`);
-	}
 }
 
 // ============================================================================

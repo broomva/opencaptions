@@ -148,8 +148,7 @@ function syn001(doc: CWIDocument): ValidationFinding[] {
 					severity: "error",
 					message: `Word "${w.text}" in caption "${event.id}" has invalid timestamps (start=${w.start}, end=${w.end})`,
 					location: { caption_id: event.id, word_index: i },
-					suggestion:
-						"Ensure all words have start >= 0, end > 0, and end > start",
+					suggestion: "Ensure all words have start >= 0, end > 0, and end > start",
 				});
 			}
 		}
