@@ -24,13 +24,23 @@ def extract_audio(video_path: str) -> str:
     )
     return audio_path
 
+_SOUND_CACHE: dict = {}
+
+def _load_sound(audio_path: str):
+    """One full-file load per input: every word extracts a part of the same recording."""
+    import parselmouth
+    if audio_path not in _SOUND_CACHE:
+        _SOUND_CACHE.clear()
+        _SOUND_CACHE[audio_path] = parselmouth.Sound(audio_path)
+    return _SOUND_CACHE[audio_path]
+
 def extract_pitch_praat(audio_path: str, start: float, end: float) -> tuple[float, list[float]]:
     try:
         import parselmouth
     except ImportError:
         return None, []
     
-    snd = parselmouth.Sound(audio_path)
+    snd = _load_sound(audio_path)
     if end > start:
         snd = snd.extract_part(start, end, parselmouth.WindowShape.HANNING, 1, False)
     
@@ -49,7 +59,7 @@ def extract_intensity_praat(audio_path: str, start: float, end: float) -> tuple[
     except ImportError:
         return None, []
         
-    snd = parselmouth.Sound(audio_path)
+    snd = _load_sound(audio_path)
     if end > start:
         snd = snd.extract_part(start, end, parselmouth.WindowShape.HANNING, 1, False)
         
@@ -189,12 +199,14 @@ def main():
                         w_start = max(0, mid - 0.040)
                         w_end = mid + 0.040
 
-                    w_pitch, _ = extract_pitch_praat(audio_path, w_start, w_end)
-                    w_vol, _ = extract_intensity_praat(audio_path, w_start, w_end)
-                    
-                    if not w_pitch:
+                    w_pitch, w_pitch_vals = extract_pitch_praat(audio_path, w_start, w_end)
+                    w_vol, w_vol_vals = extract_intensity_praat(audio_path, w_start, w_end)
+
+                    # unmeasured words (unvoiced, or silent: the -40 dB sentinel) take the utterance value,
+                    # so they neither read as stress nor skew the speaker's percentiles
+                    if not w_pitch or not w_pitch_vals:
                         w_pitch = raw_features[uid]["pitch_mean_hz"]
-                    if not w_vol:
+                    if not w_vol or not w_vol_vals:
                         w_vol = raw_features[uid]["volume_mean_db"]
                         
                     raw_features[uid]["words"].append({

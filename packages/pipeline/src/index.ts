@@ -137,11 +137,14 @@ export const rulesMapper: IntentMapper = (
 
 	// Word-level overrides
 	if (override?.pitch_normalized !== undefined && override?.volume_normalized !== undefined) {
-		weight = Math.max(
-			100,
-			Math.min(900, Math.round(lerp(200, 800, override.pitch_normalized) / 100) * 100),
-		);
-		size = lerp(0.8, 1.35, override.volume_normalized);
+		// explicit overrides (a human correction) win over values derived from the word's prosody
+		weight =
+			override.weight_override ??
+			Math.max(
+				100,
+				Math.min(900, Math.round(lerp(200, 800, override.pitch_normalized) / 100) * 100),
+			);
+		size = override.size_override ?? lerp(0.8, 1.35, override.volume_normalized);
 
 		// Local prosodic peak?
 		let isLocalPeak = false;
@@ -159,7 +162,9 @@ export const rulesMapper: IntentMapper = (
 			isLocalPeak = override.pitch_mean_hz > pMean + pSd && override.volume_mean_db > vMean + vSd;
 		}
 
-		emphasis = override.volume_normalized > 0.85 || override.pitch_normalized > 0.9 || isLocalPeak;
+		emphasis =
+			override.emphasis ??
+			(override.volume_normalized > 0.85 || override.pitch_normalized > 0.9 || isLocalPeak);
 	}
 
 	return { weight, size, emphasis };

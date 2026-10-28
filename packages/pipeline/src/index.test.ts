@@ -294,3 +294,24 @@ function makeFrame(
 		extractor_version: "0.1.0",
 	};
 }
+
+describe("rulesMapper override precedence", () => {
+	test("an explicit weight/size/emphasis override wins over word-level prosody", async () => {
+		const { rulesMapper } = await import("./index.js");
+		const word = { text: "agent", start: 0, end: 0.4, confidence: 1, speaker_id: "S0" } as never;
+		const frame = {
+			vocal: { pitch_normalized: 0.5, volume_normalized: 0.5 },
+			semantic: { emphasis_words: [] },
+			word_overrides: [],
+		} as never;
+		const out = rulesMapper(word, frame, {} as never, {
+			word_index: 0,
+			pitch_normalized: 1,
+			volume_normalized: 1,
+			weight_override: 300,
+			size_override: 0.9,
+			emphasis: false,
+		});
+		expect(out).toEqual({ weight: 300, size: 0.9, emphasis: false });
+	});
+});

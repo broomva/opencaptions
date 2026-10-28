@@ -4,6 +4,8 @@ import numpy as np
 import scipy.io.wavfile as wavfile
 import pytest
 
+pytest.importorskip("parselmouth")
+
 from extract_vocal import extract_pitch_praat
 
 def test_extract_vocal_synthetic_tone():
