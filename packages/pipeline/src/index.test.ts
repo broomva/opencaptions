@@ -190,6 +190,31 @@ describe("rulesMapper", () => {
 	});
 
 	describe("word overrides", () => {
+		test("word-level prosody produces different weights within one utterance", () => {
+			const frame = makeFrame("S1", { pitch_normalized: 0.5 });
+			frame.word_overrides = [
+				{
+					word_index: 0,
+					pitch_normalized: 0.1,
+					volume_normalized: 0.5,
+					pitch_mean_hz: 100,
+					volume_mean_db: -20,
+				},
+				{
+					word_index: 1,
+					pitch_normalized: 0.9,
+					volume_normalized: 0.5,
+					pitch_mean_hz: 200,
+					volume_mean_db: -20,
+				},
+			];
+			const w0 = rulesMapper({ ...defaultWord }, frame, defaultSpeaker, frame.word_overrides[0]);
+			const w1 = rulesMapper({ ...defaultWord }, frame, defaultSpeaker, frame.word_overrides[1]);
+			expect(w0.weight).toBeLessThan(w1.weight);
+			expect(w0.weight).toBe(300);
+			expect(w1.weight).toBe(700);
+		});
+
 		test("weight_override takes precedence over frame-derived weight", () => {
 			const frame = makeFrame("S1", { pitch_normalized: 0 });
 			const override: WordIntent = {
@@ -269,3 +294,24 @@ function makeFrame(
 		extractor_version: "0.1.0",
 	};
 }
+
+describe("rulesMapper override precedence", () => {
+	test("an explicit weight/size/emphasis override wins over word-level prosody", async () => {
+		const { rulesMapper } = await import("./index.js");
+		const word = { text: "agent", start: 0, end: 0.4, confidence: 1, speaker_id: "S0" } as never;
+		const frame = {
+			vocal: { pitch_normalized: 0.5, volume_normalized: 0.5 },
+			semantic: { emphasis_words: [] },
+			word_overrides: [],
+		} as never;
+		const out = rulesMapper(word, frame, {} as never, {
+			word_index: 0,
+			pitch_normalized: 1,
+			volume_normalized: 1,
+			weight_override: 300,
+			size_override: 0.9,
+			emphasis: false,
+		});
+		expect(out).toEqual({ weight: 300, size: 0.9, emphasis: false });
+	});
+});

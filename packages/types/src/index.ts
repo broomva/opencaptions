@@ -80,6 +80,10 @@ export type Emotion =
 export type WordIntent = {
 	/** Index into the DiarizedTranscript.words array. */
 	word_index: number;
+	pitch_normalized?: number;
+	volume_normalized?: number;
+	pitch_mean_hz?: number;
+	volume_mean_db?: number;
 	/** Override Roboto Flex wght axis: 100-900. */
 	weight_override?: number;
 	/** Override size multiplier: 0.7-1.5. */
