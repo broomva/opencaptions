@@ -223,3 +223,4 @@ export function exportWebVTT(doc: CWIDocument): string {
 
 	return lines.join("\n");
 }
+export * from "./export-ass.js";

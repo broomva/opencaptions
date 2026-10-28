@@ -456,6 +456,8 @@ export type PipelineOptions = {
 	mapper?: IntentMapper;
 	/** Language hint for transcription. */
 	language?: string;
+	/** Reference text to align the transcription against. */
+	reference_text?: string;
 	/** Speaker names/colors to override auto-detection. */
 	cast_overrides?: Array<{ speaker_id: string; name?: string; color?: string }>;
 };
