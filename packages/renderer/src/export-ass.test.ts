@@ -68,7 +68,7 @@ describe("exportASS", () => {
 
 		// "whisper" check (size <= 0.8)
 		expect(ass).toContain(
-			"{\\b200\\fs25\\1c&HFFFFFF&\\t(2100,2700,\\1c&H5555FF&)\\alpha&H60&}whisper{\\r}",
+			"{\\b200\\fs25\\1c&HFFFFFF&\\t(2100,2700,\\1c&H5555FF&)\\1a&H60&}whisper{\\r}",
 		);
 	});
 
@@ -164,6 +164,12 @@ describe("exportASS background box", () => {
 	test("box colour and opacity are configurable", () => {
 		const s = style({ backgroundBox: true, boxColor: "#102030", boxOpacity: 0.5 });
 		expect(s[6]).toBe("&H80302010");
+	});
+
+	test("boxed captions get a bottom margin for the padding unless one is given", () => {
+		expect(style({ backgroundBox: true, baseFontSize: 60 })[21]).toBe("15");
+		expect(style({ backgroundBox: true, baseFontSize: 60, marginV: 300 })[21]).toBe("300");
+		expect(style({})[21]).toBe("0");
 	});
 
 	test("no box keeps an outlined style", () => {

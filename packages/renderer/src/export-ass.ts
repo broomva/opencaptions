@@ -108,7 +108,6 @@ export function exportASS(doc: CWIDocument, opts: AssOptions = {}): string {
 	const baseFontSize = opts.baseFontSize ?? Math.round(height * 0.033);
 	const marginL = opts.marginL ?? 0;
 	const marginR = opts.marginR ?? 0;
-	const marginV = opts.marginV ?? 0;
 	const alignment = opts.alignment ?? 2;
 	const maxCharsPerLine = opts.maxCharsPerLine ?? 32;
 	const inactiveColor = hexToAssColor(opts.inactiveColor ?? "#FFFFFF");
@@ -121,6 +120,8 @@ export function exportASS(doc: CWIDocument, opts: AssOptions = {}): string {
 	const borderStyle = backgroundBox ? 4 : 1;
 	const outline = opts.outline ?? (backgroundBox ? Math.round(baseFontSize * 0.25) : 2);
 	const shadow = opts.shadow ?? (backgroundBox ? 0 : 1);
+	// A boxed caption needs room for its padding, or libass clips the box at the frame edge.
+	const marginV = opts.marginV ?? (backgroundBox ? outline : 0);
 	const boxAlpha = Math.round((1 - Math.min(1, Math.max(0, opts.boxOpacity ?? 0.75))) * 255)
 		.toString(16)
 		.toUpperCase()
@@ -175,7 +176,8 @@ export function exportASS(doc: CWIDocument, opts: AssOptions = {}): string {
 							tags += `\\t(${t1},${t1 + bounceDur},\\fscx115\\fscy115)\\t(${t1 + bounceDur},${t1 + 450},\\fscx100\\fscy100)`;
 						}
 						if (word.size <= 0.8) {
-							tags += "\\alpha&H60&";
+							// \1a, not \alpha: \alpha would also make the transparent box outline visible
+							tags += "\\1a&H60&";
 						}
 						tags += "}";
 						const resetTags = "{\\r}";
