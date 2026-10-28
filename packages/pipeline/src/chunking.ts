@@ -61,7 +61,14 @@ function getTextLength(words: CWIWord[]): number {
 }
 
 export function applyEmphasisCap(words: CWIWord[]) {
-	for (const w of words) if (w.emphasis && FUNCTION_WORDS.has(bare(w.text))) w.emphasis = false;
+	// function words carry grammar, not stress: never emphasised, and never visually dominant
+	// (a pitch rise on "an" would otherwise render it at weight 800, louder than the content words)
+	for (const w of words) {
+		if (!FUNCTION_WORDS.has(bare(w.text))) continue;
+		w.emphasis = false;
+		w.weight = Math.min(w.weight, 500);
+		w.size = Math.min(w.size, 1.05);
+	}
 	const emphasized = words.filter((w) => w.emphasis);
 	const maxEmphasis = Math.max(1, Math.round(words.length / 6));
 	if (emphasized.length > maxEmphasis) {

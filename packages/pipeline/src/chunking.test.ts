@@ -128,3 +128,16 @@ describe("caption chunking reads like a captioner wrote it", () => {
 		expect(ws[0].emphasis).toBe(false);
 	});
 });
+
+describe("function words never dominate", () => {
+	it("caps weight and size of function words, leaves content words alone", () => {
+		const ws = sentence("an agent").words;
+		for (const w of ws) {
+			w.weight = 800;
+			w.size = 1.35;
+		}
+		applyEmphasisCap(ws);
+		expect([ws[0].weight, ws[0].size]).toEqual([500, 1.05]);
+		expect([ws[1].weight, ws[1].size]).toEqual([800, 1.35]);
+	});
+});
