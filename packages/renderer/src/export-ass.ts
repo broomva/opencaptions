@@ -11,7 +11,12 @@ export type AssOptions = {
 	alignment?: number;
 	maxCharsPerLine?: number;
 	inactiveColor?: string;
+	/** One translucent box behind each caption (libass BorderStyle 4). */
 	backgroundBox?: boolean;
+	/** Box colour, default Midnight "#050B1A". */
+	boxColor?: string;
+	/** Box opacity 0-1, default 0.75. */
+	boxOpacity?: number;
 	outline?: number;
 	shadow?: number;
 };
@@ -109,9 +114,21 @@ export function exportASS(doc: CWIDocument, opts: AssOptions = {}): string {
 	const inactiveColor = hexToAssColor(opts.inactiveColor ?? "#FFFFFF");
 	const backgroundBox = opts.backgroundBox ?? false;
 
-	const borderStyle = backgroundBox ? 3 : 1;
-	const outline = opts.outline ?? (backgroundBox ? 0 : 2);
+	// BorderStyle 3 boxes every override run separately, so a per-word CWI line
+	// gets overlapping translucent boxes with dark seams. libass BorderStyle 4
+	// draws one box per event in BackColour, padded by Outline; the glyph
+	// outline is made fully transparent so it does not halo the words.
+	const borderStyle = backgroundBox ? 4 : 1;
+	const outline = opts.outline ?? (backgroundBox ? Math.round(baseFontSize * 0.25) : 2);
 	const shadow = opts.shadow ?? (backgroundBox ? 0 : 1);
+	const boxAlpha = Math.round((1 - Math.min(1, Math.max(0, opts.boxOpacity ?? 0.75))) * 255)
+		.toString(16)
+		.toUpperCase()
+		.padStart(2, "0");
+	const outlineColour = backgroundBox ? "&HFF000000" : "&H00000000";
+	const backColour = backgroundBox
+		? `&H${boxAlpha}${hexToAssColor(opts.boxColor ?? "#050B1A").slice(2, -1)}`
+		: "&H80000000";
 
 	const lines: string[] = [];
 	lines.push("[Script Info]");
@@ -126,7 +143,7 @@ export function exportASS(doc: CWIDocument, opts: AssOptions = {}): string {
 		"Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
 	);
 	lines.push(
-		`Style: Default,${fontFamily},${baseFontSize},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,${borderStyle},${outline},${shadow},${alignment},${marginL},${marginR},${marginV},1`,
+		`Style: Default,${fontFamily},${baseFontSize},&H00FFFFFF,&H000000FF,${outlineColour},${backColour},0,0,0,0,100,100,0,0,${borderStyle},${outline},${shadow},${alignment},${marginL},${marginR},${marginV},1`,
 	);
 	lines.push("");
 	lines.push("[Events]");
