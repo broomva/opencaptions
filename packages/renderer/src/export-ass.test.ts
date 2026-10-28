@@ -68,7 +68,7 @@ describe("exportASS", () => {
 
 		// "whisper" check (size <= 0.8)
 		expect(ass).toContain(
-			"{\\b200\\fs25\\1c&HFFFFFF&\\t(2100,2700,\\1c&H5555FF&)\\alpha&H60&}whisper{\\r}",
+			"{\\b200\\fs25\\1c&HFFFFFF&\\t(2100,2700,\\1c&H5555FF&)\\1a&H60&}whisper{\\r}",
 		);
 	});
 
@@ -131,5 +131,50 @@ describe("exportASS timing", () => {
 			.split("\n")
 			.find((l) => l.startsWith("Dialogue"));
 		expect(line?.startsWith("Dialogue: 0,0:00:02.48,0:00:03.01,")).toBe(true);
+	});
+});
+
+describe("exportASS background box", () => {
+	const doc = {
+		cast: [{ id: "S0", color: "#6B8AFF" }],
+		captions: [
+			{
+				id: "e",
+				start: 0,
+				end: 1,
+				speaker_id: "S0",
+				words: [{ text: "hi", start: 0, end: 1, weight: 400, size: 1, emphasis: false }],
+			},
+		],
+	} as unknown as CWIDocument;
+	const style = (o: Parameters<typeof exportASS>[1]) =>
+		exportASS(doc, o)
+			.split("\n")
+			.find((l) => l.startsWith("Style:"))
+			?.split(",") ?? [];
+
+	test("box uses one padded box per event with no glyph halo", () => {
+		const s = style({ backgroundBox: true, baseFontSize: 60 });
+		expect(s[15]).toBe("4"); // BorderStyle
+		expect(s[16]).toBe("15"); // Outline = padding
+		expect(s[5]).toBe("&HFF000000"); // OutlineColour transparent
+		expect(s[6]).toBe("&H401A0B05"); // Midnight at 75% opacity
+	});
+
+	test("box colour and opacity are configurable", () => {
+		const s = style({ backgroundBox: true, boxColor: "#102030", boxOpacity: 0.5 });
+		expect(s[6]).toBe("&H80302010");
+	});
+
+	test("boxed captions get a bottom margin for the padding unless one is given", () => {
+		expect(style({ backgroundBox: true, baseFontSize: 60 })[21]).toBe("15");
+		expect(style({ backgroundBox: true, baseFontSize: 60, marginV: 300 })[21]).toBe("300");
+		expect(style({})[21]).toBe("0");
+	});
+
+	test("no box keeps an outlined style", () => {
+		const s = style({});
+		expect(s[15]).toBe("1");
+		expect(s[5]).toBe("&H00000000");
 	});
 });

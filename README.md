@@ -32,6 +32,7 @@ npx opencaptions validate film.cwi.json
 # Export to WebVTT, ASS, After Effects, or Premiere Pro
 npx opencaptions export film.cwi.json --format webvtt
 npx opencaptions export film.cwi.json --format ass --width 1920 --height 1080
+# Add --box for one translucent Midnight box behind each caption (libass BorderStyle 4)
 npx opencaptions export film.cwi.json --format ae-json
 npx opencaptions export film.cwi.json --format premiere-xml
 
