@@ -36,6 +36,8 @@ const DEFAULT_VOICE_PROFILE: VoiceProfile = {
 	volume_p90: -10,
 };
 
+import { alignTranscript } from "./align.js";
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -165,7 +167,10 @@ export class Pipeline {
 
 		// Stage 1: Transcription
 		const t0 = performance.now();
-		const rawTranscript = await this.transcript.transcribe(input);
+		let rawTranscript = await this.transcript.transcribe(input);
+		if (options?.reference_text) {
+		        rawTranscript = alignTranscript(rawTranscript, options.reference_text);
+		}
 		stages.transcript_ms = performance.now() - t0;
 
 		// Stage 2: Diarization

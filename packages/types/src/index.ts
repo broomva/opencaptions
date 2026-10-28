@@ -450,14 +450,16 @@ export type VideoInput = {
 
 /** Options for pipeline execution. */
 export type PipelineOptions = {
-	/** Output path for the CWI document. */
-	output_path?: string;
-	/** Override the default intent mapper. */
-	mapper?: IntentMapper;
-	/** Language hint for transcription. */
-	language?: string;
-	/** Speaker names/colors to override auto-detection. */
-	cast_overrides?: Array<{ speaker_id: string; name?: string; color?: string }>;
+    /** Output path for the CWI document. */
+    output_path?: string;
+    /** Override the default intent mapper. */
+    mapper?: IntentMapper;
+    /** Language hint for transcription. */
+    language?: string;
+    /** Reference text to align the transcription against. */
+    reference_text?: string;
+    /** Speaker names/colors to override auto-detection. */
+    cast_overrides?: Array<{ speaker_id: string; name?: string; color?: string }>;
 };
 
 /** Result of a full pipeline run. */

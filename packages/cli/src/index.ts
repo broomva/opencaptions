@@ -24,7 +24,8 @@ import {
 	exportAfterEffectsScript,
 	exportPremiereXML,
 	exportWebVTT,
-} from "@opencaptions/renderer";
+	exportASS,
+	} from "@opencaptions/renderer";
 import { validate } from "@opencaptions/spec";
 import { TracingCollector } from "@opencaptions/tracing";
 import type { CWIDocument } from "@opencaptions/types";
@@ -79,42 +80,49 @@ ${BOLD}Options:${RESET}
 // ============================================================================
 
 async function cmdGenerate(args: string[]) {
-	const videoPath = args[0];
-	if (!videoPath) {
-		printError("Missing video file path");
-		print("Usage: opencaptions generate <video> [--output <file.cwi.json>]");
-		process.exit(2);
-	}
+        const videoPath = args[0];
+        if (!videoPath) {
+                printError("Missing video file path");
+                print("Usage: opencaptions generate <video> [--output <file.cwi.json>] [--reference-text <file>]");
+                process.exit(2);
+        }
 
-	const outputIdx = args.indexOf("--output");
-	const outputPath =
-		outputIdx !== -1 ? args[outputIdx + 1] : videoPath.replace(/\.[^.]+$/, ".cwi.json");
+        const outputIdx = args.indexOf("--output");
+        const outputPath =
+                outputIdx !== -1 ? args[outputIdx + 1] : videoPath.replace(/\.[^.]+$/, ".cwi.json");
 
-	const backendIdx = args.indexOf("--backend");
-	const backendType = backendIdx !== -1 ? args[backendIdx + 1] : "av";
+        const backendIdx = args.indexOf("--backend");
+        const backendType = backendIdx !== -1 ? args[backendIdx + 1] : "av";
 
-	const isNeural = backendType === "tribe" || backendType === "neural";
+        const refTextIdx = args.indexOf("--reference-text");
+        const refTextFile = refTextIdx !== -1 ? args[refTextIdx + 1] : undefined;
+        let referenceText: string | undefined = undefined;
+        if (refTextFile) {
+                referenceText = readFileSync(resolve(refTextFile), "utf-8");
+        }
 
-	print(
-		`${BOLD}Generating CWI captions${RESET} from ${CYAN}${videoPath}${RESET}` +
-			` ${DIM}(${isNeural ? "TRIBE v2 neural" : "audio+vision"} backend)${RESET}\n`,
-	);
+        const isNeural = backendType === "tribe" || backendType === "neural";
 
-	const avBackends = createV1Backends();
-	const extractor = isNeural ? createTribeBackend() : avBackends.extractor;
-	const mapper = isNeural ? neuralMapper : rulesMapper;
+        print(
+                `${BOLD}Generating CWI captions${RESET} from ${CYAN}${videoPath}${RESET}` +
+                        ` ${DIM}(${isNeural ? "TRIBE v2 neural" : "audio+vision"} backend)${RESET}\n`,
+        );
 
-	const pipeline = new Pipeline({
-		transcript: avBackends.transcript,
-		diarization: avBackends.diarization,
-		extractor,
-		mapper,
-	});
+        const avBackends = createV1Backends();
+        const extractor = isNeural ? createTribeBackend() : avBackends.extractor;
+        const mapper = isNeural ? neuralMapper : rulesMapper;
 
-	const startTime = performance.now();
+        const pipeline = new Pipeline({
+                transcript: avBackends.transcript,
+                diarization: avBackends.diarization,
+                extractor,
+                mapper,
+        });
 
-	try {
-		const result = await pipeline.run({ path: resolve(videoPath) }, { output_path: outputPath });
+        const startTime = performance.now();
+
+        try {
+                const result = await pipeline.run({ path: resolve(videoPath) }, { output_path: outputPath, reference_text: referenceText });
 
 		const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
 
@@ -231,43 +239,71 @@ async function cmdPreview(args: string[]) {
 }
 
 async function cmdExport(args: string[]) {
-	const filePath = args[0];
-	const formatIdx = args.indexOf("--format");
-	const format = formatIdx !== -1 ? args[formatIdx + 1] : "webvtt";
+        const filePath = args[0];
+        const formatIdx = args.indexOf("--format");
+        const format = formatIdx !== -1 ? args[formatIdx + 1] : "webvtt";
 
-	if (!filePath) {
-		printError("Missing CWI file path");
-		process.exit(2);
-	}
+        if (!filePath) {
+                printError("Missing CWI file path");
+                process.exit(2);
+        }
 
-	try {
-		const doc: CWIDocument = JSON.parse(readFileSync(resolve(filePath), "utf-8"));
+        const outputIdx = args.indexOf("--output");
+        let customOutPath = outputIdx !== -1 ? args[outputIdx + 1] : null;
 
-		const { writeFileSync } = await import("node:fs");
+        try {
+                const doc: CWIDocument = JSON.parse(readFileSync(resolve(filePath), "utf-8"));
 
-		if (format === "webvtt") {
-			const vtt = exportWebVTT(doc);
-			const outPath = filePath.replace(/\.cwi\.json$/, ".vtt");
-			writeFileSync(resolve(outPath), vtt);
-			printSuccess(`Exported WebVTT: ${outPath}`);
-		} else if (format === "ae-json") {
-			const jsx = exportAfterEffectsScript(doc);
-			const outPath = filePath.replace(/\.cwi\.json$/, ".jsx");
-			writeFileSync(resolve(outPath), jsx);
-			printSuccess(`Exported After Effects script: ${outPath}`);
-		} else if (format === "premiere-xml") {
-			const xml = exportPremiereXML(doc);
-			const outPath = filePath.replace(/\.cwi\.json$/, ".xml");
-			writeFileSync(resolve(outPath), xml);
-			printSuccess(`Exported Premiere Pro XML: ${outPath}`);
-		} else {
-			printError(`Format "${format}" not supported. Available: webvtt, ae-json, premiere-xml`);
-			process.exit(2);
-		}
-	} catch (err) {
-		printError(err instanceof Error ? err.message : String(err));
-		process.exit(2);
-	}
+                const { writeFileSync } = await import("node:fs");
+
+                if (format === "webvtt") {
+                        const vtt = exportWebVTT(doc);
+                        const outPath = customOutPath || filePath.replace(/\.cwi\.json$/, ".vtt");
+                        writeFileSync(resolve(outPath), vtt);
+                        printSuccess(`Exported WebVTT: ${outPath}`);
+                } else if (format === "ae-json") {
+                        const jsx = exportAfterEffectsScript(doc);
+                        const outPath = customOutPath || filePath.replace(/\.cwi\.json$/, ".jsx");
+                        writeFileSync(resolve(outPath), jsx);
+                        printSuccess(`Exported After Effects script: ${outPath}`);
+                } else if (format === "premiere-xml") {
+                        const xml = exportPremiereXML(doc);
+                        const outPath = customOutPath || filePath.replace(/\.cwi\.json$/, ".xml");
+                        writeFileSync(resolve(outPath), xml);
+                        printSuccess(`Exported Premiere Pro XML: ${outPath}`);
+                } else if (format === "ass") {
+                        const getArg = (flag: string) => {
+                                const idx = args.indexOf(flag);
+                                return idx !== -1 ? args[idx + 1] : undefined;
+                        };
+                        const getNum = (flag: string) => {
+                                const val = getArg(flag);
+                                return val ? Number.parseFloat(val) : undefined;
+                        };
+                        const opts = {
+                                width: getNum("--width"),
+                                height: getNum("--height"),
+                                fontFamily: getArg("--font"),
+                                baseFontSize: getNum("--font-size"),
+                                marginL: getNum("--margin-l"),
+                                marginR: getNum("--margin-r"),
+                                marginV: getNum("--margin-v"),
+                                maxCharsPerLine: getNum("--max-chars"),
+                                backgroundBox: args.includes("--box")
+                        };
+
+                        const ass = exportASS(doc, opts);
+                        const outPath = customOutPath || filePath.replace(/\.cwi\.json$/, ".ass");
+                        writeFileSync(resolve(outPath), ass);
+                        printSuccess(`Exported ASS subtitles: ${outPath}`);
+                } else {
+                        printError(`Format "${format}" not supported. Available: webvtt, ae-json, premiere-xml, ass`);
+                        process.exit(2);
+                }
+        } catch (err) {
+                printError(err instanceof Error ? err.message : String(err));
+                process.exit(2);
+        }
 }
 
 async function cmdTelemetry(args: string[]) {

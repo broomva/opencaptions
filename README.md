@@ -29,10 +29,14 @@ npx opencaptions preview film.cwi.json
 # Validate against CWI spec
 npx opencaptions validate film.cwi.json
 
-# Export to WebVTT, After Effects, or Premiere Pro
+# Export to WebVTT, ASS, After Effects, or Premiere Pro
 npx opencaptions export film.cwi.json --format webvtt
+npx opencaptions export film.cwi.json --format ass --width 1920 --height 1080
 npx opencaptions export film.cwi.json --format ae-json
 npx opencaptions export film.cwi.json --format premiere-xml
+
+# Burn-in ASS subtitles via FFmpeg
+ffmpeg -i film.mp4 -vf "subtitles=film.ass:fontsdir=./fonts" out.mp4
 ```
 
 ## How It Works
@@ -70,10 +74,10 @@ Each dependency you install makes the captions feel more:
 ## CLI Commands
 
 ```
-opencaptions generate <video> [--output <file.cwi.json>]  # Full pipeline
+opencaptions generate <video> [--output <file.cwi.json>] [--reference-text <file>]  # Full pipeline
 opencaptions validate <file.cwi.json>                      # Score against CWI spec
 opencaptions preview <file.cwi.json>                       # Terminal preview with colors
-opencaptions export <file.cwi.json> --format <fmt>         # WebVTT, AE, Premiere
+opencaptions export <file.cwi.json> --format <fmt>         # WebVTT, ASS, AE, Premiere
 opencaptions telemetry [show|on|off]                        # Manage telemetry
 opencaptions setup                                          # Install Python deps
 opencaptions doctor                                         # Verify components
