@@ -204,9 +204,9 @@ export class AudioVisionExtractor implements IntentExtractorBackend {
 		// Try to extract vocal features
 		let vocalData: Map<string, VocalFeatures> | null = null;
 		try {
-			vocalData = await this.extractVocal(input, utterances);
-		} catch {
-			console.warn("Vocal extraction unavailable, using defaults");
+			vocalData = await this.extractVocal(input, utterances, transcript);
+		} catch (e) {
+			console.warn("Vocal extraction unavailable, using defaults", e);
 		}
 
 		// Try to extract facial emotion
@@ -248,7 +248,14 @@ export class AudioVisionExtractor implements IntentExtractorBackend {
 					emphasis_words: [],
 					rhetorical_device: undefined,
 				},
-				word_overrides: [],
+				word_overrides:
+					vocal.words?.map((w) => ({
+						word_index: w.word_index,
+						pitch_normalized: w.pitch_normalized,
+						volume_normalized: w.volume_normalized,
+						pitch_mean_hz: w.pitch_mean_hz,
+						volume_mean_db: w.volume_mean_db,
+					})) ?? [],
 				extractor_id: "audio-vision-v1",
 				extractor_version: "0.1.0",
 			};
@@ -288,6 +295,7 @@ export class AudioVisionExtractor implements IntentExtractorBackend {
 	private async extractVocal(
 		input: VideoInput,
 		utterances: Utterance[],
+		transcript: DiarizedTranscript,
 	): Promise<Map<string, VocalFeatures>> {
 		const scriptPath = join(SCRIPTS_DIR, "extract_vocal.py");
 		if (!existsSync(scriptPath)) {
@@ -297,7 +305,20 @@ export class AudioVisionExtractor implements IntentExtractorBackend {
 		const result = await runPython(
 			scriptPath,
 			["--input", input.path],
-			JSON.stringify(utterances.map((u) => ({ id: u.id, start: u.start, end: u.end }))),
+			JSON.stringify(
+				utterances.map((u) => ({
+					id: u.id,
+					speaker_id: u.speaker_id,
+					start: u.start,
+					end: u.end,
+					words: u.words.map((w) => ({
+						word_index: transcript.words.indexOf(w),
+						start: w.start,
+						end: w.end,
+						text: w.text,
+					})),
+				})),
+			),
 		);
 
 		const data = parseJsonOutput<Record<string, VocalFeatures>>(result, "Vocal extraction");
@@ -342,6 +363,13 @@ type VocalFeatures = {
 	volume_mean_db: number;
 	volume_normalized: number;
 	speech_rate_wpm: number;
+	words?: Array<{
+		word_index: number;
+		pitch_normalized: number;
+		volume_normalized: number;
+		pitch_mean_hz: number;
+		volume_mean_db: number;
+	}>;
 };
 
 type EmotionFeatures = {

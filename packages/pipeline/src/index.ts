@@ -27,6 +27,7 @@ import type {
 
 import { CWI_SCHEMA_URI, CWI_VERSION, SPEAKER_COLORS } from "@opencaptions/types";
 import { alignTranscript } from "./align.js";
+import { applyEmphasisCap, chunkCaptionEvent } from "./chunking.js";
 
 const DEFAULT_VOICE_PROFILE: VoiceProfile = {
 	pitch_baseline_hz: 150,
@@ -96,6 +97,13 @@ export function assignSpeakerColors(speakerIds: string[]): Map<string, string> {
 	return map;
 }
 
+/** Compute standard deviation of a numeric array. */
+function stdDev(values: number[], meanVal: number): number {
+	if (values.length < 2) return 0;
+	const variance = values.reduce((sum, v) => sum + (v - meanVal) ** 2, 0) / values.length;
+	return Math.sqrt(variance);
+}
+
 // ============================================================================
 // V1 RulesMapper
 // ============================================================================
@@ -103,10 +111,10 @@ export function assignSpeakerColors(speakerIds: string[]): Map<string, string> {
 /**
  * V1 RulesMapper — pure function mapping IntentFrame → CWI visual parameters.
  *
- * - Pitch → weight: lerp(200, 700, pitch_normalized), rounded to nearest 100
- * - Volume → size: lerp(0.8, 1.35, volume_normalized)
+ * - Pitch → weight: lerp(200, 800, word_pitch_normalized), rounded to nearest 100
+ * - Volume → size: lerp(0.8, 1.35, word_volume_normalized)
  * - Emphasis: semantic.emphasis_words includes word text OR volume_normalized > 0.85
- * - Word-level overrides take precedence over utterance-level derivation
+ *   OR pitch_normalized > 0.9 OR local prosodic peak
  */
 export const rulesMapper: IntentMapper = (
 	word: DiarizedWord,
@@ -115,15 +123,44 @@ export const rulesMapper: IntentMapper = (
 	override?: WordIntent,
 ): Pick<CWIWord, "weight" | "size" | "emphasis"> => {
 	// Utterance-level derivation
-	const baseWeight = Math.round(lerp(200, 700, frame.vocal.pitch_normalized) / 100) * 100;
+	const baseWeight = Math.max(
+		100,
+		Math.min(900, Math.round(lerp(200, 700, frame.vocal.pitch_normalized) / 100) * 100),
+	);
 	const baseSize = lerp(0.8, 1.35, frame.vocal.volume_normalized);
 	const baseEmphasis =
 		frame.semantic.emphasis_words.includes(word.text) || frame.vocal.volume_normalized > 0.85;
 
-	// Apply word-level overrides if present
-	const weight = override?.weight_override ?? baseWeight;
-	const size = override?.size_override ?? baseSize;
-	const emphasis = override?.emphasis ?? baseEmphasis;
+	let weight = override?.weight_override ?? baseWeight;
+	let size = override?.size_override ?? baseSize;
+	let emphasis = override?.emphasis ?? baseEmphasis;
+
+	// Word-level overrides
+	if (override?.pitch_normalized !== undefined && override?.volume_normalized !== undefined) {
+		weight = Math.max(
+			100,
+			Math.min(900, Math.round(lerp(200, 800, override.pitch_normalized) / 100) * 100),
+		);
+		size = lerp(0.8, 1.35, override.volume_normalized);
+
+		// Local prosodic peak?
+		let isLocalPeak = false;
+		if (override.pitch_mean_hz !== undefined && override.volume_mean_db !== undefined) {
+			const validWords = frame.word_overrides.filter(
+				(wo) => wo.pitch_mean_hz !== undefined && wo.volume_mean_db !== undefined,
+			);
+			const pitches = validWords.map((wo) => wo.pitch_mean_hz as number);
+			const volumes = validWords.map((wo) => wo.volume_mean_db as number);
+			const pMean = mean(pitches);
+			const vMean = mean(volumes);
+			const pSd = stdDev(pitches, pMean);
+			const vSd = stdDev(volumes, vMean);
+
+			isLocalPeak = override.pitch_mean_hz > pMean + pSd && override.volume_mean_db > vMean + vSd;
+		}
+
+		emphasis = override.volume_normalized > 0.85 || override.pitch_normalized > 0.9 || isLocalPeak;
+	}
 
 	return { weight, size, emphasis };
 };
@@ -256,13 +293,17 @@ export class Pipeline {
 			});
 
 			if (cwiWords.length > 0) {
-				captions.push({
+				applyEmphasisCap(cwiWords);
+
+				const newEvent: CaptionEvent = {
 					id: crypto.randomUUID(),
 					start: frame.start,
 					end: frame.end,
 					speaker_id: frame.speaker_id,
 					words: cwiWords,
-				});
+				};
+
+				captions.push(...chunkCaptionEvent(newEvent, 42));
 			}
 		}
 		stages.mapping_ms = performance.now() - t3;
