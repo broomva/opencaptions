@@ -109,6 +109,19 @@ def normalize_values(values: list[float], all_speaker_values: list[float]) -> fl
     z = (v - np.mean(all_v)) / (np.std(all_v) + 1e-8)
     return round(float(1 / (1 + np.exp(-z))), 4)
 
+def detrend(values: list[float], times: list[float]) -> list[float]:
+    """Remove the linear trend across one utterance, keeping its mean.
+
+    Speech declines in pitch (and often loudness) from the start of an utterance to its end, so
+    sentence-initial words read as "stressed" when normalised against the whole speaker. Stress is
+    the deviation from that declination line, not the absolute value. Needs 3+ words; else unchanged.
+    """
+    if len(values) < 3 or max(times) - min(times) <= 0:
+        return list(values)
+    slope, intercept = np.polyfit(np.array(times), np.array(values), 1)
+    mean_t = float(np.mean(times))
+    return [float(v - slope * (t - mean_t)) for v, t in zip(values, times)]
+
 def normalize_p10_p90(val: float, p10: float, p90: float) -> float:
     if p90 == p10: return 0.5
     norm = (val - p10) / (p90 - p10)
@@ -187,10 +200,21 @@ def main():
                     raw_features[uid]["words"].append({
                         "word_index": w["word_index"],
                         "pitch_median_hz": w_pitch,
-                        "volume_mean_db": w_vol
+                        "volume_mean_db": w_vol,
+                        "mid": (w["start"] + w["end"]) / 2,
                     })
-                    speaker_word_pitches[speaker_id].append(w_pitch)
-                    speaker_word_volumes[speaker_id].append(w_vol)
+
+                # declination-corrected values (pitch in semitones, so the correction is perceptual)
+                ws = raw_features[uid]["words"]
+                if ws:
+                    mids = [x["mid"] for x in ws]
+                    st = detrend([12 * np.log2(max(x["pitch_median_hz"], 1e-6)) for x in ws], mids)
+                    db = detrend([x["volume_mean_db"] for x in ws], mids)
+                    for x, p_st, v_db in zip(ws, st, db):
+                        x["pitch_median_hz"] = float(2 ** (p_st / 12))
+                        x["volume_mean_db"] = v_db
+                        speaker_word_pitches[speaker_id].append(x["pitch_median_hz"])
+                        speaker_word_volumes[speaker_id].append(v_db)
 
             else:
                 features = extract_with_librosa(audio_path, start, end)

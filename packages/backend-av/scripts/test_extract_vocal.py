@@ -38,3 +38,17 @@ def test_extract_vocal_synthetic_tone():
         assert 210 < p2 < 240
     finally:
         os.remove(path)
+
+
+def test_detrend_removes_declination_but_keeps_a_stressed_word():
+    from extract_vocal import detrend
+    times = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
+    falling = [20.0 - 2 * t for t in times]          # a plain declining contour
+    falling[3] += 3.0                                 # one stressed word in the middle
+    out = detrend(falling, times)
+    assert out.index(max(out)) == 3                    # the stressed word, not the first word, is now highest
+    assert abs(sum(out) / len(out) - sum(falling) / len(falling)) < 1e-9
+
+def test_detrend_leaves_short_utterances_alone():
+    from extract_vocal import detrend
+    assert detrend([1.0, 2.0], [0.0, 1.0]) == [1.0, 2.0]

@@ -13,11 +13,55 @@ const CONJUNCTIONS = new Set([
 	"although",
 ]);
 
+/** Words that carry grammar, not stress: never emphasised, never the last word of a caption. */
+export const FUNCTION_WORDS = new Set([
+	"a",
+	"an",
+	"the",
+	"of",
+	"to",
+	"in",
+	"on",
+	"at",
+	"by",
+	"for",
+	"with",
+	"from",
+	"as",
+	"into",
+	"and",
+	"or",
+	"but",
+	"so",
+	"nor",
+	"if",
+	"that",
+	"than",
+	"it",
+	"its",
+	"is",
+	"are",
+	"was",
+	"be",
+	"can",
+	"will",
+	"has",
+	"have",
+	"this",
+	"these",
+	"those",
+	"each",
+	"every",
+	"what",
+]);
+export const bare = (text: string) => text.toLowerCase().replace(/[^a-z']/g, "");
+
 function getTextLength(words: CWIWord[]): number {
 	return words.map((w) => w.text).join(" ").length;
 }
 
 export function applyEmphasisCap(words: CWIWord[]) {
+	for (const w of words) if (w.emphasis && FUNCTION_WORDS.has(bare(w.text))) w.emphasis = false;
 	const emphasized = words.filter((w) => w.emphasis);
 	const maxEmphasis = Math.max(1, Math.round(words.length / 6));
 	if (emphasized.length > maxEmphasis) {
@@ -62,15 +106,23 @@ export function chunkCaptionEvent(event: CaptionEvent, maxChars = 42): CaptionEv
 			bestSplit = lastValidEnd;
 		} else {
 			for (let i = startIdx + 1; i <= lastValidEnd; i++) {
-				let score = i - startIdx;
 				const prevWord = event.words[i - 1];
 				const nextWord = i < event.words.length ? event.words[i] : null;
+				// fill dominates: a caption should use its line, not break at every comma
+				const fill = getTextLength(event.words.slice(startIdx, i)) / maxChars;
+				let score = fill * 10;
 
-				if (PUNCTUATION.test(prevWord.text)) {
-					score += 10;
+				// a sentence end is a strong break even on a short line; a comma only once the line is well used
+				if (/[.?!]$/.test(prevWord.text) && fill >= 0.3) {
+					score += 8;
+				} else if (PUNCTUATION.test(prevWord.text) && fill >= 0.6) {
+					score += 4;
 				}
-				if (nextWord && CONJUNCTIONS.has(nextWord.text.toLowerCase())) {
-					score += 5;
+				if (nextWord && CONJUNCTIONS.has(nextWord.text.toLowerCase()) && fill >= 0.6) {
+					score += 2;
+				}
+				if (FUNCTION_WORDS.has(bare(prevWord.text))) {
+					score -= 20; // "…somewhere to | put files" reads as a broken thought
 				}
 				if (i === event.words.length - 1) {
 					score -= 100;
