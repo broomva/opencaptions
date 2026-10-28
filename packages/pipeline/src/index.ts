@@ -26,6 +26,7 @@ import type {
 } from "@opencaptions/types";
 
 import { CWI_SCHEMA_URI, CWI_VERSION, SPEAKER_COLORS } from "@opencaptions/types";
+import { alignTranscript } from "./align.js";
 
 const DEFAULT_VOICE_PROFILE: VoiceProfile = {
 	pitch_baseline_hz: 150,
@@ -35,8 +36,6 @@ const DEFAULT_VOICE_PROFILE: VoiceProfile = {
 	volume_p10: -30,
 	volume_p90: -10,
 };
-
-import { alignTranscript } from "./align.js";
 
 // ============================================================================
 // Helpers
@@ -169,7 +168,7 @@ export class Pipeline {
 		const t0 = performance.now();
 		let rawTranscript = await this.transcript.transcribe(input);
 		if (options?.reference_text) {
-		        rawTranscript = alignTranscript(rawTranscript, options.reference_text);
+			rawTranscript = alignTranscript(rawTranscript, options.reference_text);
 		}
 		stages.transcript_ms = performance.now() - t0;
 
